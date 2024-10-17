@@ -292,14 +292,16 @@ class Meow_WPLR_Sync_Core {
 	}
 
 	function check_db() {
+		$this->log( '[WP/LR] Checking the database...' );
+
 		global $wpdb;
 		$tbl_s = $wpdb->prefix . 'lrsync';
 		$tbl_m = $wpdb->prefix . 'lrsync_meta';
 		$tbl_c = $wpdb->prefix . 'lrsync_collections';
-
-		// In 2022, we should remove all those checks
-		// Or maybe add a button to Repair/Optimize the tables
-
+		$tbl_r = $wpdb->prefix . 'lrsync_relations';
+	
+		$messages = array();
+	
 		// To make sure there are primary keys (Added in version 6.0+)
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) 
 			FROM information_schema.table_constraints 
@@ -307,34 +309,56 @@ class Meow_WPLR_Sync_Core {
 			AND table_name = '%s' 
 			AND constraint_name = 'PRIMARY';", $wpdb->dbname, $tbl_s ) ) ) {
 			meow_wplrsync_activate();
-		}
 
-		// Check if the table exist (Added in version 6.0+)
+			$messages[] = '🟠 Primary key added to ' . $tbl_s;
+		}
+	
+		// Check if the table $tbl_m exists (Added in version 6.0+)
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_m ) ) ) {
 			meow_wplrsync_activate();
-		}
 
+			$messages[] = '🟠 Table ' . $tbl_m . ' created.';
+		}
+	
+		// Check if the table $tbl_r exists
+		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_r ) ) ) {
+			meow_wplrsync_activate();
+
+			$messages[] = '🟠 Table ' . $tbl_r . ' created.';
+		}
+	
 		// Check if the new column 'source' exists in collections table (Added in version 6.0+)
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'source' ) ) ) {
 			meow_wplrsync_activate();
-		}
 
+			$messages[] = '🟠 Column source added to ' . $tbl_c;
+		}
+	
 		// Check if the new column 'featured_id' exists in collections table (Added in version 6.0+)
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'featured_id' ) ) ) {
 			meow_wplrsync_activate();
-		}
 
+			$messages[] = '🟠 Column featured_id added to ' . $tbl_c;
+		}
+	
 		// Check if the new column 'slug' exists in collections table (Added in version 6.0+)
 		// Create the slugs if they aren't there.
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'slug' ) ) ) {
 			meow_wplrsync_activate();
+
+			$messages[] = '🟠 Column slug added to ' . $tbl_c;
+
 			$galleries = $wpdb->get_results( "SELECT wp_col_id id, name FROM $tbl_c", OBJECT);
-        foreach ( $galleries as $gallery ) {
-					$slug = sanitize_title( $gallery->name );
-					//error_log("{$gallery->id} => $slug");
-					$wpdb->update( $tbl_c, array( 'slug' => $slug ), array( 'wp_col_id' => $gallery->id ), array( '%s' ), array( '%d' ) );
-        }
+			foreach ( $galleries as $gallery ) {
+				$slug = sanitize_title( $gallery->name );
+				//error_log("{$gallery->id} => $slug");
+				$wpdb->update( $tbl_c, array( 'slug' => $slug ), array( 'wp_col_id' => $gallery->id ), array( '%s' ), array( '%d' ) );
+
+				$messages[] = "Slug $slug added to gallery {$gallery->id}";
+			}
 		}
+
+		return $messages;
 	}
 
 	function reset_db() {

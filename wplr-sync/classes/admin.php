@@ -9,7 +9,6 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 		if ( is_admin() ) {
 			global $wplr;
 			$this->wplr = $wplr;
-			$this->wplr->check_db();
 
 			if ( current_user_can( 'upload_files' ) ) {
 				add_action( 'show_user_profile', array ( $this, 'auth_token_field' ) );

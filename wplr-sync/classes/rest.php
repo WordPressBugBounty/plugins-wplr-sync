@@ -136,6 +136,11 @@ class Meow_WPLR_Sync_Rest
 				'permission_callback' => array( $this->core, 'can_access_features' ),
 				'callback' => array( $this, 'rest_clean' )
 			) );
+			register_rest_route( $this->namespace, '/repair', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_repair' )
+			) );
 			register_rest_route( $this->namespace, '/create_folder', array(
 				'methods' => 'POST',
 				'permission_callback' => array( $this->core, 'can_access_features' ),
@@ -790,6 +795,19 @@ class Meow_WPLR_Sync_Rest
 				'data' => 'An exception was caught and written in the PHP error logs.'
 			], 500 );
 		}
+	}
+
+	function rest_repair() {
+		$messages = $this->core->check_db();
+
+		if ( empty( $messages ) ) {
+			$messages[] = '🟢 No issues found.';
+		}
+
+		return new WP_REST_Response([
+			'success' => true,
+			'data' => $messages
+		], 200 );
 	}
 
 	function rest_create_folder($request) {

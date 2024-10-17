@@ -52,7 +52,6 @@ class Meow_WPLR_Sync_Public_API {
 	// Authenticate and share the useful arguments.
 	function init_with( &$args ) {
 		global $wplr;
-		$wplr->check_db();
 		// Debug Auth
 		if ( count( $args ) < 3 ) {
 			$this->error = new Meow_WPLR_Sync_Error( 403, "Authentification is missing." );

@@ -1,11 +1,14 @@
 === Photo Engine (Media Organizer & Lightroom) ===
 Contributors: TigrouMeow
-Tags: lightroom, synchronization, export, image, gallery, media, photo, management, admin, gutenberg
+Tags: lightroom, sync, export, image, manager
 Donate link: https://www.patreon.com/meowapps
+License: GPLv3
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 6.4.1
+Stable tag: 6.4.2
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Organize your photos in folders and collections. Synchronize with Lightroom. Make your life easier! :)
 
@@ -59,6 +62,10 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.4.2 (2024/10/17) =
+* Update: Enhanced Repair DB button.
+* Update: Improved DB checks.
 
 = 6.4.1 (2024/08/24) =
 * Fix: Minor security issues related to wplrsync_link and wplrsync_unlink.

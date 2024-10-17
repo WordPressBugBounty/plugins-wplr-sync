@@ -113,7 +113,7 @@ class Meow_WPLR_Sync_API {
 	 */
 	function auth( $token ) {
 		global $wplr, $wpdb;
-		$wplr->check_db();
+
 		if ( empty( $token ) ) {
 			$this->error = "Authentification is missing.";
 			$wplr->log( $this->error );
