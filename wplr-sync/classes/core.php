@@ -525,6 +525,7 @@ class Meow_WPLR_Sync_Core {
 				'jpe'     => 'image/jpeg',
 				'jpeg'    => 'image/jpeg',
 				'jpg'     => 'image/jpeg',
+				'avif'    => 'image/avif',
 				'mov'     => 'video/quicktime',
 				'movie'   => 'video/x-sgi-movie',
 				'mp2'     => 'audio/mpeg',

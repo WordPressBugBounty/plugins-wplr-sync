@@ -4,9 +4,9 @@ Tags: lightroom, sync, export, image, manager
 Donate link: https://www.patreon.com/meowapps
 License: GPLv3
 Requires at least: 6.0
-Tested up to: 6.6
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.4.2
+Stable tag: 6.4.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -63,9 +63,9 @@ Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
 
-= 6.4.2 (2024/10/17) =
-* Update: Enhanced Repair DB button.
-* Update: Improved DB checks.
+= 6.4.3 (2024/10/17) =
+* Update: Added AVIF in valid mime types. 
+* Info: This plugin is alive thanks to you! So if you have one minute, please give it a good review [here](https://wordpress.org/support/plugin/wplr-sync/reviews/?rate=5#new-post). Thank you :)
 
 = 6.4.1 (2024/08/24) =
 * Fix: Minor security issues related to wplrsync_link and wplrsync_unlink.
@@ -75,7 +75,6 @@ Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 = 6.4.0 (2024/06/03) =
 * Update: Code cleaning and optimization.
 * Update: Latest NekoUI and common libs.
-* Info: This plugin is alive thanks to you! So if you have one minute, please give it a good review [here](https://wordpress.org/support/plugin/wplr-sync/reviews/?rate=5#new-post). Thank you :)
 
 = 6.3.3 (2024/04/27) =
 * Update: Consolidated multiple useSWR hooks into a single useSWR for fetching media, improving efficiency and maintainability.
