@@ -303,6 +303,7 @@ class Meow_WPLR_Sync_Core {
 		$messages = array();
 	
 		// To make sure there are primary keys (Added in version 6.0+)
+		$messages[] = 'Checking '. $tbl_s . ' table...';
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) 
 			FROM information_schema.table_constraints 
 			WHERE table_schema = '%s'
@@ -311,38 +312,64 @@ class Meow_WPLR_Sync_Core {
 			meow_wplrsync_activate();
 
 			$messages[] = '🟠 Primary key added to ' . $tbl_s;
+		} else {
+			$messages[] = '🟢 Primary key exists in ' . $tbl_s;
 		}
-	
+		
+
 		// Check if the table $tbl_m exists (Added in version 6.0+)
+		$messages[] = 'Checking '. $tbl_m . ' table...';
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_m ) ) ) {
 			meow_wplrsync_activate();
 
 			$messages[] = '🟠 Table ' . $tbl_m . ' created.';
+		} else {
+			$messages[] = '🟢 Table ' . $tbl_m . ' exists.';
 		}
 	
 		// Check if the table $tbl_r exists
+		$messages[] = 'Checking '. $tbl_r . ' table...';
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_r ) ) ) {
 			meow_wplrsync_activate();
 
 			$messages[] = '🟠 Table ' . $tbl_r . ' created.';
+		} else {
+			$messages[] = '🟢 Table ' . $tbl_r . ' exists.';
+		}
+
+		// Check if the table $tbl_c exists (Added in version 6.0+)
+		$messages[] = 'Checking '. $tbl_c . ' table...';
+		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_c ) ) ) {
+			meow_wplrsync_activate();
+
+			$messages[] = '🟠 Table ' . $tbl_c . ' created.';
+		} else {
+			$messages[] = '🟢 Table ' . $tbl_c . ' exists.';
 		}
 	
 		// Check if the new column 'source' exists in collections table (Added in version 6.0+)
+		$messages[] = 'Checking column source in ' . $tbl_c . ' table...';
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'source' ) ) ) {
 			meow_wplrsync_activate();
 
 			$messages[] = '🟠 Column source added to ' . $tbl_c;
+		} else {
+			$messages[] = '🟢 Column source exists in ' . $tbl_c;
 		}
 	
 		// Check if the new column 'featured_id' exists in collections table (Added in version 6.0+)
+		$messages[] = 'Checking column featured_id in ' . $tbl_c . ' table...';
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'featured_id' ) ) ) {
 			meow_wplrsync_activate();
 
 			$messages[] = '🟠 Column featured_id added to ' . $tbl_c;
+		} else {
+			$messages[] = '🟢 Column featured_id exists in ' . $tbl_c;
 		}
 	
 		// Check if the new column 'slug' exists in collections table (Added in version 6.0+)
 		// Create the slugs if they aren't there.
+		$messages[] = 'Checking column slug in ' . $tbl_c . ' table...';
 		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'slug' ) ) ) {
 			meow_wplrsync_activate();
 
@@ -356,6 +383,8 @@ class Meow_WPLR_Sync_Core {
 
 				$messages[] = "Slug $slug added to gallery {$gallery->id}";
 			}
+		} else {
+			$messages[] = '🟢 Column slug exists in ' . $tbl_c;
 		}
 
 		return $messages;
@@ -645,6 +674,62 @@ class Meow_WPLR_Sync_Core {
 		$table_name = $wpdb->prefix . "lrsync";
 		$info = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE lr_id = %d", $lr_id ), OBJECT );
 		return $info;
+	}
+
+	// Check if there's a format mismatch between file extension and actual content
+	function check_format_mismatch( $wp_id ) {
+		// Check if this media is managed by WP/LR Sync
+		$sync_info = $this->get_sync_info( $wp_id );
+		if ( !$sync_info ) {
+			return false;
+		}
+
+		// Get the file path and extension
+		$file_path = get_attached_file( $wp_id );
+		if ( !$file_path || !file_exists( $file_path ) ) {
+			return false;
+		}
+
+		$file_extension = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
+		
+		// Get the actual MIME type from file content
+		$finfo = finfo_open( FILEINFO_MIME_TYPE );
+		$actual_mime = finfo_file( $finfo, $file_path );
+		finfo_close( $finfo );
+
+		// Map MIME types to expected extensions
+		$mime_to_ext = array(
+			'image/jpeg' => array( 'jpg', 'jpeg' ),
+			'image/png' => array( 'png' ),
+			'image/avif' => array( 'avif' ),
+			'image/tiff' => array( 'tiff', 'tif' ),
+			'image/webp' => array( 'webp' ),
+			'image/heic' => array( 'heic' ),
+			'image/heif' => array( 'heif' )
+		);
+
+		// Check if there's a mismatch
+		$has_mismatch = false;
+		$expected_format = '';
+		$actual_format = '';
+
+		if ( isset( $mime_to_ext[$actual_mime] ) ) {
+			$expected_extensions = $mime_to_ext[$actual_mime];
+			if ( !in_array( $file_extension, $expected_extensions ) ) {
+				$has_mismatch = true;
+				$actual_format = $expected_extensions[0];
+				$expected_format = $file_extension;
+			}
+		}
+
+		return array(
+			'has_mismatch' => $has_mismatch,
+			'file_extension' => $file_extension,
+			'actual_format' => $actual_format,
+			'actual_mime' => $actual_mime,
+			'message' => $has_mismatch ? 
+				"This file has a .$file_extension extension but contains $actual_format data. This can happen when you change export formats in Lightroom. The file will display correctly, but the mismatched extension may cause confusion." : ''
+		);
 	}
 
 	function get_hierarchy( $parent = null, $level = 0, $source = null ) {

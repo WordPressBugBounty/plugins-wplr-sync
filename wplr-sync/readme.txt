@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.4.3
+Stable tag: 6.4.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,11 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.4.4 (2025/07/23) =
+* Update: Replaced deprecated Google Charts QR code generator with QRServer.
+* Fix: Enhanced database checks.
+* Update: Refreshed and optimized common libraries.
 
 = 6.4.3 (2024/10/17) =
 * Update: Added AVIF in valid mime types. 

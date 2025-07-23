@@ -25,6 +25,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 			add_action( 'wp_ajax_wplrsync_extensions_reset', array( $this, 'wplrsync_extensions_reset' ) );
 			add_action( 'wp_ajax_wplrsync_extensions_init', array( $this, 'wplrsync_extensions_init' ) );
 			add_action( 'wp_ajax_wplrsync_extensions_query', array( $this, 'wplrsync_extensions_query' ) );
+			add_action( 'add_meta_boxes', array( $this, 'add_format_warning_metabox' ) );
 			//if ( get_option( 'wplr_library_show_hierarchy', 'none' ) !== 'none' ) {
 				$wplr_medialib = new Meow_WPLR_Sync_Explorer();
 			//}
@@ -532,8 +533,9 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 						$c['name'] . '</b> <small>(ID: ' . $c['id'] . ', Photos: ' . $c['count'] . ')</small>';
 					echo '<form action="" method="post" style="display: inline;">
 						<input type="hidden" name="page" value="' . $page . '">
-						<input type="hidden" name="action" value="' . $mode . '">
-						<small class="wplr_delete" style="display: ' . ( $hasDeleted ? 'inline' : 'none' ) . ';">
+						<input type="hidden" name="action" value="' . $mode . '">';
+					wp_nonce_field( 'wplr_debug_action' );
+					echo '<small class="wplr_delete" style="display: ' . ( $hasDeleted ? 'inline' : 'none' ) . ';">
 						<button type="submit" name="delete_keyword" value="' . $c['id'] . '" class="btn-link">' .
 						__( 'Delete', 'wplr-sync' ) . '</button>
 						</small></form>';
@@ -546,8 +548,9 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 						. $type . ' ' . $c['name'] . ' <small>(ID: ' . $c['id'] . ')</small>';
 
 					echo '<form action="" method="post" style="display: inline;">
-						<input type="hidden" name="page" value="' . $page. '">
-						<small class="wplr_delete" style="display: none;">
+						<input type="hidden" name="page" value="' . $page. '">';
+					wp_nonce_field( 'wplr_debug_action' );
+					echo '<small class="wplr_delete" style="display: none;">
 						<button type="submit" name="delete_collection" value="' . $c['id'] . '" class="btn-link">' .
 						__( 'Delete', 'wplr-sync' ) . '</button>
 						</small></form>';
@@ -738,6 +741,11 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 
 		if ( isset( $_POST['action'] ) ) {
 
+			// CSRF Protection: Verify nonce for POST requests
+			if ( !isset( $_POST['_wpnonce'] ) || !wp_verify_nonce( $_POST['_wpnonce'], 'wplr_debug_action' ) ) {
+				wp_die( __( 'Security check failed. Please try again.', 'wplr-sync' ) );
+			}
+
 			$action = $_POST['action'];
 			if ( $action == "reset" ) {
 				$this->wplr->reset_db();
@@ -834,22 +842,27 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 				<p class="buttons">
 					<form style="float: left; margin-right: 5px;" method="post" action="">
 						<input type="hidden" name="action" value="hierarchy">
+						<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 						<input type="submit" name="submit" id="submit" class="button" value="Show Hierarchy">
 					</form>
 					<form style="float: left; margin-right: 5px;" method="post" action="">
 						<input type="hidden" name="action" value="keywords">
+						<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 						<input type="submit" name="submit" id="submit" class="button" value="Show Keywords">
 					</form>
 					<form style="float: left; margin-right: 5px;" method="post" action="">
 						<input type="hidden" name="action" value="list">
+						<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 						<input type="submit" name="submit" id="submit" class="button" value="List Linked">
 					</form>
 					<form style="float: left; margin-right: 5px;" method="post" action="">
 						<input type="hidden" name="action" value="scan">
+						<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 						<input type="submit" name="submit" id="submit" class="button" value="List Unlinked">
 					</form>
 					<form style="float: left; margin-right: 5px;" method="post" action="">
 						<input type="hidden" name="action" value="duplicates">
+						<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 						<input type="submit" name="submit" id="submit" class="button" value="List Duplicates">
 					</form>
 					<!-- <form style="float: left; margin-right: 5px;" method="post" action="">
@@ -907,6 +920,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 				<p><?php _e( 'Link info for either a WP ID <b>or</b> the Uploaded File.', 'wplr-sync' ) ?></p>
 				<form class="wplrsync-form" method="post" action="" enctype="multipart/form-data">
 					<input type="hidden" name="action" value="linkinfo_upload">
+					<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 					<table>
 						<tr>
 							<th scope="row"><label for="wp_id">WP ID</label></th>
@@ -927,6 +941,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 				<p><?php _e( 'Will link the WP Media ID to the Lr ID.', 'wplr-sync' ) ?></p>
 				<form class="wplrsync-form" method="post" action="" enctype="multipart/form-data">
 					<input type="hidden" name="action" value="link">
+					<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 					<table>
 						<tr>
 							<th scope="row"><label for="lr_id">Lr ID</label></th>
@@ -948,6 +963,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 				<p><?php _e( 'Will unlink the media.', 'wplr-sync' ) ?></p>
 				<form class="wplrsync-form" method="post" action="">
 					<input type="hidden" name="action" value="unlink">
+					<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 					<table>
 						<tr>
 							<th scope="row"><label for="lr_id">Lr ID</label></th>
@@ -968,6 +984,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 				<p><?php _e( 'Will create the entry if doesn\'t exist, will update it if exists.', 'wplr-sync' ) ?></p>
 				<form class="wplrsync-form" method="post" action="" enctype="multipart/form-data">
 					<input type="hidden" name="action" value="sync">
+					<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 					<table>
 						<tr>
 							<th scope="row"><label for="lr_id">Lr ID</label></th>
@@ -1013,6 +1030,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 				<p><?php _e( 'Will remove the media.', 'wplr-sync' ) ?></p>
 				<form class="wplrsync-form" method="post" action="">
 					<input type="hidden" name="action" value="remove">
+					<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 					<table>
 						<tr>
 							<th scope="row"><label for="lr_id">Lr ID</label></th>
@@ -1030,6 +1048,7 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 					<?php _e( 'Be careful. Those buttons are dangerous.', 'wplr-sync' ) ?>
 					<form style="margin-right: 5px;" method="post" action="">
 						<input type="hidden" name="action" value="reset">
+						<?php wp_nonce_field( 'wplr_debug_action' ); ?>
 						<input type="submit" name="submit" id="submit" class="button button-primary"
 							value="<?php _e( 'Reset Photo Engine DB', 'wplr-sync' ) ?>">
 					</form>
@@ -1039,6 +1058,64 @@ class Meow_WPLR_Sync_Admin extends MeowCommon_Admin {
 		</div>
 	</div>
 		<?php
+	}
+
+	// Add metabox for format warning on media edit page
+	function add_format_warning_metabox() {
+		global $post;
+		if ( $post && $post->post_type === 'attachment' ) {
+			// Check if this media has a format mismatch
+			global $wplr;
+			$mismatch_info = $wplr->check_format_mismatch( $post->ID );
+			if ( $mismatch_info && $mismatch_info['has_mismatch'] ) {
+				add_meta_box(
+					'wplr_format_warning',
+					__( 'Format Notice', 'wplr-sync' ),
+					array( $this, 'format_warning_metabox_content' ),
+					'attachment',
+					'side',
+					'default'
+				);
+			}
+		}
+	}
+
+	// Display format warning content
+	function format_warning_metabox_content( $post ) {
+		global $wplr;
+		$mismatch_info = $wplr->check_format_mismatch( $post->ID );
+		if ( $mismatch_info && $mismatch_info['has_mismatch'] ) {
+			?>
+			<div style="padding: 10px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+				<p style="margin: 0 0 10px 0;">
+					<strong>⚠️ <?php _e( 'Format Mismatch Detected', 'wplr-sync' ); ?></strong>
+				</p>
+				<p style="margin: 0 0 10px 0; font-size: 13px;">
+					<?php 
+					printf( 
+						__( 'This file has a .%s extension but contains %s data.', 'wplr-sync' ), 
+						esc_html( $mismatch_info['file_extension'] ), 
+						esc_html( strtoupper( $mismatch_info['actual_format'] ) ) 
+					); 
+					?>
+				</p>
+				<p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">
+					<?php _e( 'This happens when you change export formats in Lightroom after photos have already been published. Due to Lightroom SDK limitations, there is no perfect solution to preserve the original format during re-exports.', 'wplr-sync' ); ?>
+				</p>
+				<p style="margin: 0; font-size: 12px; color: #666;">
+					<strong><?php _e( 'Good news:', 'wplr-sync' ); ?></strong> <?php _e( 'Browsers detect the actual format from the file content, not the extension, so your images will display correctly.', 'wplr-sync' ); ?>
+				</p>
+				<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">
+					<?php 
+					printf( 
+						__( 'If you want to fix the file extensions, you can use the <a href="%s" target="_blank">Media File Renamer</a> plugin.', 'wplr-sync' ),
+						'https://wordpress.org/support/plugin/media-file-renamer/'
+					); 
+					?>
+				</p>
+			</div>
+			<?php
+		}
 	}
 }
 
