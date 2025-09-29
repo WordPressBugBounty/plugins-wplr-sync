@@ -1141,6 +1141,11 @@ class Meow_WPLR_Sync_Core {
 	}
 
 	function get_exif_datetime( $path, $format = 'Y-m-d H:i:s' ) {
+		if( empty( $path ) || !file_exists( $path ) ) {
+			$this->log( "The file $path does not exist." );
+			return null;
+		}
+
 		if ( !function_exists( 'exif_read_data' ) ) {
 			$this->log( "The EXIF library for PHP is not enabled." );
 			return null;
@@ -1830,10 +1835,36 @@ class Meow_WPLR_Sync_Core {
 		}
 	}
 
+	function collection_checks( $collection ) {
+		if ( empty( $collection ) ) {
+			$this->log("Empty collection found, skipping." );
+			$this->error = __( "Collection is empty.", 'wplr-sync' );
+			return false;
+		}
+
+		if ( empty( $collection->name ) ) {
+			$this->log("Collection name is empty, skipping." );
+			$this->error = __( "Collection name is empty.", 'wplr-sync' );
+			return false;
+		}
+
+		if ( $collection->type != 'folder' && $collection->type != 'collection' ) {
+			$this->log("Collection type is invalid, skipping." );
+			$this->error = __( "Collection type is invalid.", 'wplr-sync' );
+			return false;
+		}
+
+		return true;
+	}
+
 	function sync_collection( $collections, $source = 'lr' ) {
 		global $wpdb;
 		$folder = null;
 		foreach ( $collections as &$collection ) {
+			// Basic checks
+			if ( !$this->collection_checks( $collection ) ) continue;
+
+
 			$type = $collection->type == 'folder' ? 'folder' : 'collection';
 
 			$parent_folder = null;

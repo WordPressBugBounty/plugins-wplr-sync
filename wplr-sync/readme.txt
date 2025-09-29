@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 6.4.5
+Stable tag: 6.4.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,9 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.4.6 (2025/09/29) =
+* Update: Validation checks to ensure collections are properly synchronized.
 
 = 6.4.5 (2025/08/27) =
 * Fix: Corrected typos.
