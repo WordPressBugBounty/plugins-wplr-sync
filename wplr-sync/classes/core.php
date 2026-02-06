@@ -11,7 +11,7 @@ class Meow_WPLR_Sync_Core {
 
 	public function __construct() {
 		$this->site_url = get_site_url();
-		$this->is_rest = MeowCommon_Helpers::is_rest();
+		$this->is_rest = MeowKit_WPLR_Helpers::is_rest();
 		$this->is_cli = defined( 'WP_CLI' ) && WP_CLI;
 		add_action( 'delete_attachment', array( $this, 'delete_attachment' ) );
 		add_filter( 'manage_media_columns', array( $this, 'manage_media_columns' ) );
@@ -242,6 +242,9 @@ class Meow_WPLR_Sync_Core {
 		try {
 			if ( is_writable( dirname( __FILE__ ) ) ) {
 				$fh = fopen( trailingslashit( dirname( __FILE__ ) ) . 'wplr-sync.log', 'a' );
+				if ( ! $fh ) {
+					throw new Exception( 'Cannot open log file.' );
+				}
 				$date = date( "Y-m-d H:i:s" );
 				fwrite( $fh, "$date: {$data}\n" );
 				fclose( $fh );
@@ -251,7 +254,7 @@ class Meow_WPLR_Sync_Core {
 			}
 		}
 		catch ( Exception $e ) {
-			error_log( 'Cannot create or write the Photo Engine Logs.' );
+			error_log( 'Cannot create or write the Photo Engine Logs: ' . $e->getMessage() );
 		}
 	}
 
@@ -1283,7 +1286,16 @@ class Meow_WPLR_Sync_Core {
 
 			// Generate the images
 			require_once( ABSPATH . 'wp-admin/includes/image.php' );
-			$metadata = wp_generate_attachment_metadata( $wp_id, $current_file );
+			$metadata = null;
+			
+			try {
+				$metadata = wp_generate_attachment_metadata( $wp_id, $current_file );
+			}
+			catch ( Exception $e ) {
+				$this->error = __( "Could not generate attachment metadata for " . $current_file . " ( ID: " . $wp_id . " ). Error: " . $e->getMessage(), 'wplr-sync' );
+				return false;
+			}
+			
 			wp_update_attachment_metadata( $wp_id, $metadata );
 
 			// Support for WP Retina 2x
@@ -1479,9 +1491,15 @@ class Meow_WPLR_Sync_Core {
 		$pHash = apply_filters( 'wplr_calculate_pHash', null, $path );
 		if ( !empty( $pHash ) )
 			return $pHash;
-		require_once( WPLR_SYNC_PATH . '/vendor/phasher.class.php' );
-		$I = PHasher::Instance();
-		return $I->HashAsString( $I->HashImage( $path, 0, 0, 16 ), true );
+		try {
+			require_once( WPLR_SYNC_PATH . '/vendor/phasher.class.php' );
+			$I = PHasher::Instance();
+			return $I->HashAsString( $I->HashImage( $path, 0, 0, 16 ), true );
+		}
+		catch ( Throwable $e ) {
+			error_log( 'PHasher error: ' . $e->getMessage() );
+			return null;
+		}
 	}
 
 	// Returns link info for a file at this path

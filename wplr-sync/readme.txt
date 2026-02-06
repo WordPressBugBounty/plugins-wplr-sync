@@ -4,9 +4,9 @@ Tags: lightroom, sync, export, image, manager
 Donate link: https://www.patreon.com/meowapps
 License: GPLv3
 Requires at least: 6.0
-Tested up to: 6.8
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.4.6
+Stable tag: 6.4.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,24 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.4.9 (2026/01/27) =
+* Fix: Prevent errors by checking if AttachmentFilters exists before adding the taxonomy.
+* Fix: Improve hidden filter behavior.
+* Update: Improve error handling for logging and metadata generation.
+* Fix: Hotfix undefined call to onSelectFilter to avoid errors when selecting filters.
+
+= 6.4.8 (2025/12/03) =
+* Fix: Resolved a useEffect re-render loop in the Media Organizer.
+* Fix: Corrected an array offset warning in admin debug mode.
+* Fix: Added error handling for PHasher to prevent crashes when processing invalid images.
+* 🎵 Discuss with others about Wplr Sync on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/wplr-sync/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
+
+= 6.4.7 (2025/11/13) =
+* Update: Upgraded to MeowKit.
+* Fix: Corrected display issues.
 
 = 6.4.6 (2025/09/29) =
 * Update: Validation checks to ensure collections are properly synchronized.

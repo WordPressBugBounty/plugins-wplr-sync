@@ -92,8 +92,9 @@ class Meow_WPLR_Sync_Explorer {
 	function shouldBeOverriden() {
 		$should = false;
 		$screen = get_current_screen();
-		if ($screen->base === 'upload')
-			return true;
+
+		if ($screen->base === 'upload') return true;
+
 		if ( isset( $_SERVER['QUERY_STRING'] ) ) {
 			if ( preg_match( '/action=edit/', $_SERVER['QUERY_STRING'] ) )
 				return true;

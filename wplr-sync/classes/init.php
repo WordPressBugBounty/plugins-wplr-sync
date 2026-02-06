@@ -81,8 +81,10 @@ spl_autoload_register(function ($class) {
   $file = null;
   if (strpos($class, 'Meow_WPLR_Sync') !== false) {
     $file = WPLR_SYNC_PATH . '/classes/' . str_replace('meow_wplr_sync_', '', strtolower($class)) . '.php';
-  } else if (strpos($class, 'MeowCommon_') !== false) {
-    $file = WPLR_SYNC_PATH . '/common/' . str_replace('meowcommon_', '', strtolower($class)) . '.php';
+  } else if (strpos($class, 'MeowKit_WPLR_') !== false) {
+    $file = WPLR_SYNC_PATH . '/common/' . str_replace('meowkit_wplr_', '', strtolower($class)) . '.php';
+  } else if (strpos($class, 'MeowKitPro_WPLR_') !== false) {
+    $file = WPLR_SYNC_PATH . '/common/premium/' . str_replace('meowkitpro_wplr_', '', strtolower($class)) . '.php';
   } else if (strpos($class, 'MeowPro_WPLR_Sync') !== false) {
     $necessary = false;
     $file = WPLR_SYNC_PATH . '/premium/' . str_replace('meowpro_wplr_sync_', '', strtolower($class)) . '.php';

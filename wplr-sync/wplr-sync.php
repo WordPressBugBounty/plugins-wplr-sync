@@ -3,7 +3,7 @@
 Plugin Name: Photo Engine (WP/LR Sync)
 Plugin URI: https://meowapps.com
 Description: Synchronize and maintain your photos, collections, keywords and metadata between Lightroom and WordPress.
-Version: 6.4.6
+Version: 6.4.9
 Author: Jordy Meow
 Author URI: https://meowapps.com
 Text Domain: wplr-sync
@@ -14,7 +14,7 @@ Originally developed for two of my websites:
 - Haikyo (https://haikyo.org)
 */
 
-define( 'WPLR_SYNC_VERSION', '6.4.6' );
+define( 'WPLR_SYNC_VERSION', '6.4.9' );
 define( 'WPLR_SYNC_PREFIX', 'wplr_sync' );
 define( 'WPLR_SYNC_DOMAIN', 'wplr-sync' );
 define( 'WPLR_SYNC_ENTRY', __FILE__ );
