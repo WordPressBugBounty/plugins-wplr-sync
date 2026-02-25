@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.4.9
+Stable tag: 6.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,14 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.5.0 (2026/02/25) =
+* Fix: Validate file types before syncing in the Lightroom Sync API.
+* Add: Enable drag-and-drop reordering of photos within the same collection.
+* Update: Improve gallery shortcode indicators in folders and collections.
+* 🎵 Discuss with others about Wplr Sync on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/wplr-sync/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.4.9 (2026/01/27) =
 * Fix: Prevent errors by checking if AttachmentFilters exists before adding the taxonomy.

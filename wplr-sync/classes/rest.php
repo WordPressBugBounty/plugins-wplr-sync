@@ -201,6 +201,11 @@ class Meow_WPLR_Sync_Rest
 				'permission_callback' => array( $this->core, 'can_access_features' ),
 				'callback' => array( $this, 'rest_update_featured_image' )
 			) );
+			register_rest_route( $this->namespace, '/reorder_media', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_features' ),
+				'callback' => array( $this, 'rest_reorder_media' )
+			) );
 		}
 		catch (Exception $e) {
 			var_dump($e);
@@ -1096,6 +1101,43 @@ class Meow_WPLR_Sync_Rest
 		}
 		try {
 			$this->core->set_featured_image($collection_id, $featured_image_id);
+
+			return new WP_REST_Response([
+				'success' => true,
+			], 200 );
+		}
+		catch (Exception $e) {
+			return new WP_REST_Response([
+				'success' => false,
+				'message' => $e->getMessage(),
+			], 500 );
+		}
+	}
+
+	public function rest_reorder_media($request) {
+		$params = $request->get_json_params();
+		$collection_id = isset( $params['collection_id'] ) ? $params['collection_id'] : '';
+		$media_ids = isset( $params['media_ids'] ) ? $params['media_ids'] : [];
+		if (!$collection_id || !is_array($media_ids) || count($media_ids) === 0) {
+			return new WP_REST_Response([
+				'success' => false,
+				'message' => 'The collection id or media ids are missing.',
+			], 400 );
+		}
+		try {
+			global $wpdb;
+			$tbl_r = $wpdb->prefix . 'lrsync_relations';
+			
+			// Update the sort order for each media in the collection
+			foreach ($media_ids as $index => $media_id) {
+				$wpdb->update(
+					$tbl_r,
+					array( 'sort' => $index ),
+					array( 'wp_col_id' => $collection_id, 'wp_id' => $media_id ),
+					array( '%d' ),
+					array( '%d', '%d' )
+				);
+			}
 
 			return new WP_REST_Response([
 				'success' => true,

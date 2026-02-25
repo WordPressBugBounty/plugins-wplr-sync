@@ -182,10 +182,24 @@ class Meow_WPLR_Sync_API {
 	 */
 	function sync( $args ) {
 		global $wplr;
+
 		if ( !$_FILES || !isset( $_FILES['file'] ) ) {
 			$wplr->log( 'Parameter missing.' );
 			return $this->response( null, false, 'Parameter missing.' );
 		}
+
+		$filename = isset( $args['file'] ) ? $args['file'] : '';
+		
+		$allowed_mimes = get_allowed_mime_types();
+		$filetype = wp_check_filetype( $filename, $allowed_mimes );
+
+		$is_valid = $filetype['type'] && $filetype['ext'] && $filetype['ext'] !== false;
+
+		if ( !$is_valid ) {
+			$wplr->log( 'File type validation failed: ' . $filetype['type'] );
+			return $this->response( null, false, 'File type validation failed: ' . $filetype['type'] );
+		}
+
 		$lrinfo = new Meow_WPLR_Sync_LRInfo();
 		$lrinfo->lr_id = $args["id"];
 		$lrinfo->lr_file = $args["file"];
