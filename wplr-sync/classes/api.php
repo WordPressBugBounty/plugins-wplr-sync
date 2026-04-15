@@ -114,24 +114,40 @@ class Meow_WPLR_Sync_API {
 	function auth( $token ) {
 		global $wplr, $wpdb;
 
+
 		if ( empty( $token ) ) {
 			$this->error = "Authentification is missing.";
 			$wplr->log( $this->error );
 			return false;
 		}
+		
+		//* DEBUG: allow to authenticate as admin with a hardcoded token (for testing purposes only)
+		// if ( $token == "MEOW_TOKEN" ) {
+
+		// 	$this->user = get_userdata( 1 );
+		// 	if ( empty( $this->user ) ) {
+		// 		$this->error = "User admin does not exist.";
+		// 		$wplr->log( $this->error );
+		// 		return false;
+		// 	}
+
+		// 	$wplr->log( "Authenticated as admin" );
+		// 	return $this->user;
+		// }
+
 		$prefix = defined( 'BLOG_ID_CURRENT_SITE' ) ? $wpdb->get_blog_prefix( BLOG_ID_CURRENT_SITE ) : $wpdb->prefix;
 		$tbl_meta = defined('CUSTOM_USER_META_TABLE' ) ? CUSTOM_USER_META_TABLE : $prefix . "usermeta";
 		$userId = $wpdb->get_var( $wpdb->prepare( "SELECT user_id FROM $tbl_meta
 			WHERE meta_value = %s AND meta_key = %s", $token, 'wplr_auth_token' ) );
 		if ( empty( $userId ) ) {
-			$this->error = 'Incorrect token. Visit your Profile (on your WordPress site) to get a new one.';
-			$wplr->log( 'Incorrect token.');
+			$this->error = "Token '$token' seems to be invalid.";
+			$wplr->log( $this->error );
 			return false;
 		}
 		$this->user = get_userdata( $userId );
 		if ( empty( $this->user ) ) {
 			$this->error = 'User does not exist.';
-			$wplr->log( 'User does not exist.');
+			$wplr->log( $this->error );
 			return false;
 		}
 		$wplr->log( "Authenticated as " . $this->user->user_login );
@@ -200,6 +216,10 @@ class Meow_WPLR_Sync_API {
 			return $this->response( null, false, 'File type validation failed: ' . $filetype['type'] );
 		}
 
+		// Decode tags 
+		$args["tags"] = json_decode( stripslashes( $args["tags"] ), true );
+		$args = apply_filters( 'wplr_sync_api_sync_args', $args );
+
 		$lrinfo = new Meow_WPLR_Sync_LRInfo();
 		$lrinfo->lr_id = $args["id"];
 		$lrinfo->lr_file = $args["file"];
@@ -211,7 +231,7 @@ class Meow_WPLR_Sync_API {
 		$lrinfo->sync_caption = $args["syncCaption"];
 		$lrinfo->sync_desc = $args["syncDesc"];
 		$lrinfo->sync_alt_text = $args["syncAltText"];
-		$lrinfo->tags = json_decode( stripslashes( $args["tags"] ), true );
+		$lrinfo->tags = $args["tags"];
 		$file = $_FILES['file']['tmp_name'];
 
 		if ( !isset( $args["wp_col_id"] ) || $args["wp_col_id"] == null )
@@ -219,6 +239,7 @@ class Meow_WPLR_Sync_API {
 		if ( !$sync = $wplr->sync_media( $lrinfo, $file, $args["wp_col_id"], $this->user->ID ) ) {
 			return $this->response( null, false, $wplr->get_error() );
 		}
+
 		return $this->response($sync);
 	}
 

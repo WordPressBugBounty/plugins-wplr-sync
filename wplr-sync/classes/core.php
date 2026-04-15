@@ -1311,9 +1311,10 @@ class Meow_WPLR_Sync_Core {
 			SET lr_file = %s, lastsync = NOW()
 			WHERE lr_id = %d", $lrinfo->lr_file, $lrinfo->lr_id )
 		);
-
-		if ( !empty( $lrinfo->tags ) )
-			$this->sync_media_tags( $wp_id, $lrinfo->tags );
+		
+		// * If we update the media by deleting the tags, we want to sync even if empty, to remove them
+		//if ( !empty( $lrinfo->tags ) )
+		$this->sync_media_tags( $wp_id, $lrinfo->tags );
 
 		$tbl_r = $wpdb->prefix . "lrsync_relations";
 		$gallery_ids = $wpdb->get_col( $wpdb->prepare( "SELECT wp_col_id FROM $tbl_r WHERE wp_id = %d", $wp_id ) );

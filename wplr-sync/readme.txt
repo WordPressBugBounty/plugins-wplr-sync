@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 6.5.0
+Stable tag: 6.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,11 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.5.1 (2026/04/15) =
+* Fix: Fixed hidden media toolbar on Safari.
+* Fix: Ensure media tags are properly synced even when deleted during updates.
+* Update: Improve authentication error handling and add a new filter for arguments in the sync API.
 
 = 6.5.0 (2026/02/25) =
 * Fix: Validate file types before syncing in the Lightroom Sync API.
