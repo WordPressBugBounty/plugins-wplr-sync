@@ -117,6 +117,7 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 			'wplr_library_show_filters' => false,
 			'wplr_auth_token' => false,
 			'wplr_qr' => null,
+			'wplr_user_token' => null,
 			'sync_keywords_options' => [],
 			'troubles_issues' => [],
 			'extensions' => [],
@@ -124,6 +125,49 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 			'wplr_media_library' => false,
 			'wplr_media_modals' => false,
 		);
+	}
+
+	/**
+	 * Generates a new Public API auth token, stores it as a transient and returns it.
+	 * @return string The new token
+	 */
+	function generate_public_api_token() {
+		$token = str_replace( '|', '#', wp_generate_password( 12, false, false ) );
+		set_transient( 'wplr_auth_token', $token, YEAR_IN_SECONDS );
+		return $token;
+	}
+
+	/**
+	 * Builds the QR payload (home url + token) used by the Public API.
+	 * @param string $token
+	 * @return string
+	 */
+	function get_public_api_qr( $token ) {
+		$home_url = function_exists( 'pll_home_url' ) ? pll_home_url() : get_home_url();
+		return $home_url . '|' . $token;
+	}
+
+	/**
+	 * Returns the personal auth token of the current user (used to authenticate as
+	 * this WordPress user through the API). Generates one if it does not exist yet.
+	 * @return string|null
+	 */
+	function get_user_token() {
+		$user_id = get_current_user_id();
+		if ( !$user_id ) {
+			return null;
+		}
+		$token = get_user_meta( $user_id, 'wplr_auth_token', true );
+		if ( empty( $token ) ) {
+			global $wplr;
+			try {
+				$token = $wplr->generate_auth_token( $user_id );
+			}
+			catch ( Exception $e ) {
+				$token = null;
+			}
+		}
+		return $token;
 	}
 
 	function get_all_options() {
@@ -143,12 +187,10 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 		$wplr_auth_token = get_transient( 'wplr_auth_token' );
 		$wplr_qr = null;
 		if ( $public_api ) {
-			$home_url = function_exists( 'pll_home_url' ) ? pll_home_url() : get_home_url();
 			if ( $wplr_auth_token === false ) {
-				$wplr_auth_token = str_replace ( '|', '#', wp_generate_password( 12, false, false ) );
-				set_transient( 'wplr_auth_token', $wplr_auth_token, YEAR_IN_SECONDS );
+				$wplr_auth_token = $this->generate_public_api_token();
 			}
-			$wplr_qr = $home_url . '|' . $wplr_auth_token;
+			$wplr_qr = $this->get_public_api_qr( $wplr_auth_token );
 		} 
 		elseif ( $wplr_auth_token !== false ) {
 			delete_transient( 'wplr_auth_token' );
@@ -163,6 +205,8 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 				$current_options[$option] = $wplr_auth_token;
 			} elseif ( $option === 'wplr_qr' ) {
 				$current_options[$option] = $wplr_qr;
+			} elseif ( $option === 'wplr_user_token' ) {
+				$current_options[$option] = $this->get_user_token();
 			} elseif ( $option === 'sync_keywords_options' ) {
 				$current_options[$option] = $taxonomies;
 			} elseif ( $option === 'troubles_issues' ) {

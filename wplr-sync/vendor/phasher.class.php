@@ -79,6 +79,11 @@ private static $Instance;
 		
 	public function HashImage($res, $rot=0, $mir=0, $size = 8, $WhichHash = 'aHash'){
 		
+		$isGd = $res instanceof GdImage;
+		if( !$isGd ) {
+			throw new Exception("HashImage() requires a GD image resource, ".gettype($res)." given.");
+		}
+
 		$res = $this->NormalizeAsResource($res); // make sure this is a resource
 		$rescached = imagecreatetruecolor($size, $size);
 		

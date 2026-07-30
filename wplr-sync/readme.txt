@@ -4,9 +4,9 @@ Tags: lightroom, sync, export, image, manager
 Donate link: https://www.patreon.com/meowapps
 License: GPLv3
 Requires at least: 6.0
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 6.5.3
+Stable tag: 6.5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,16 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.5.4 (2026/07/30) =
+* Add: WPLR token setting with a regeneration option in the settings screen.
+* Add: Public API auth token regeneration with an input field next to the QR code.
+* Update: Reorder the settings screen.
+* Add: WPLR filter now appears natively in the media library modal.
+* Fix: Type check for GD image resources when hashing images.
+* 🎵 Discuss with others about Wplr Sync on [the Discord](https://discord.gg/bHDGh38).
+* 🌴 Keep us motivated with [a little review here](https://wordpress.org/support/plugin/wplr-sync/reviews/). Thank you!
+* 🥰 If you want to help us, check our [Patreon](https://www.patreon.com/meowapps). Thank you!
 
 = 6.5.3 (2026/05/07) =
 * Add: Folder view in Organizer.

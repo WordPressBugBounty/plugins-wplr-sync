@@ -28,6 +28,16 @@ class Meow_WPLR_Sync_Rest
 				'permission_callback' => array( $this->core, 'can_access_settings' ),
 				'callback' => array( $this, 'rest_all_settings' ),
 			) );
+			register_rest_route( $this->namespace, '/generate_auth_token', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_settings' ),
+				'callback' => array( $this, 'rest_generate_auth_token' ),
+			) );
+			register_rest_route( $this->namespace, '/regenerate_user_token', array(
+				'methods' => 'POST',
+				'permission_callback' => array( $this->core, 'can_access_settings' ),
+				'callback' => array( $this, 'rest_regenerate_user_token' ),
+			) );
 			register_rest_route( $this->namespace, '/entries', array(
 				'methods' => 'GET',
 				'permission_callback' => array( $this->core, 'can_access_settings' ),
@@ -217,6 +227,49 @@ class Meow_WPLR_Sync_Rest
 			'success' => true,
 			'data' => $this->admin->get_all_options()
 		], 200 );
+	}
+
+	function rest_generate_auth_token() {
+		if ( !get_option( 'wplr_public_api', false ) ) {
+			return new WP_REST_Response( [
+				'success' => false,
+				'message' => 'The Public API is not enabled.'
+			], 400 );
+		}
+		$token = $this->admin->generate_public_api_token();
+		$qr = $this->admin->get_public_api_qr( $token );
+		return new WP_REST_Response( [
+			'success' => true,
+			'data' => [
+				'wplr_auth_token' => $token,
+				'wplr_qr' => $qr
+			]
+		], 200 );
+	}
+
+	function rest_regenerate_user_token() {
+		$user_id = get_current_user_id();
+		if ( !$user_id ) {
+			return new WP_REST_Response( [
+				'success' => false,
+				'message' => 'No user is currently logged in.'
+			], 400 );
+		}
+		try {
+			$token = $this->core->generate_auth_token( $user_id );
+			return new WP_REST_Response( [
+				'success' => true,
+				'data' => [
+					'wplr_user_token' => $token
+				]
+			], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response( [
+				'success' => false,
+				'message' => $e->getMessage()
+			], 500 );
+		}
 	}
 
 	function rest_wp_hierarchy() {
