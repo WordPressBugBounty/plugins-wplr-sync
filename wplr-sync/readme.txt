@@ -5,8 +5,8 @@ Donate link: https://www.patreon.com/meowapps
 License: GPLv3
 Requires at least: 6.0
 Tested up to: 7.0
-Requires PHP: 7.4
-Stable tag: 6.5.4
+Requires PHP: 8.1
+Stable tag: 6.5.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,13 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.5.5 (2026/08/17) =
+* Update: Minimum required PHP version is now 8.1.
+* Update: Reworked the dashboard with a plugin board, a shorter speed test and an AI site analysis.
+* Fix: Dragging media now flags the hovered target and no longer wipes the current view.
+* Add: Warning message when dragging items to a folder in the Organizer.
+* Update: Increased the priority of the handleRequest action in the WPLR Sync API constructor.
 
 = 6.5.4 (2026/07/30) =
 * Add: WPLR token setting with a regeneration option in the settings screen.

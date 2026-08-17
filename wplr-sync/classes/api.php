@@ -17,7 +17,7 @@ class Meow_WPLR_Sync_API {
 	public function __construct() {
 		if ( $this->endsWith( $_SERVER['REQUEST_URI'], '/?wplr-sync-api' ) ) {
 			$this->ob_enabled = get_option( 'wplr_catch_errors', false );
-			add_action( 'init', array ( $this, 'handleRequest' ), 10, 0 );
+			add_action( 'init', array ( $this, 'handleRequest' ), 20, 0 );
 			define( 'DOING_WPLR_REQUEST', 1 );
 		}
 	}

@@ -79,14 +79,18 @@ private static $Instance;
 		
 	public function HashImage($res, $rot=0, $mir=0, $size = 8, $WhichHash = 'aHash'){
 		
-		$isGd = $res instanceof GdImage;
-		if( !$isGd ) {
-			throw new Exception("HashImage() requires a GD image resource, ".gettype($res)." given.");
+		$res = $this->NormalizeAsResource($res);
+
+		if( !($res instanceof GdImage) ) {
+			throw new Exception("HashImage() requires a GD image resource or valid image path, ".gettype($res)." given (input: ".print_r($res,true).")");
 		}
 
-		$res = $this->NormalizeAsResource($res); // make sure this is a resource
 		$rescached = imagecreatetruecolor($size, $size);
-		
+
+		if( !($rescached instanceof GdImage) ) {
+			throw new Exception("HashImage() failed to create temporary image canvas.");
+		}
+
 		imagecopyresampled($rescached, $res, 0, 0, 0, 0, $size, $size, imagesx($res), imagesy($res));
 		imagecopymergegray($rescached, $res, 0, 0, 0, 0, $size, $size, 50);
 		
@@ -252,14 +256,37 @@ private static $Instance;
 		return the resource. */
 		
 	private function NormalizeAsResource($resource){
-		if(gettype($resource) == 'resource'){
+
+		if($resource instanceof GdImage || gettype($resource) == 'resource'){
 			return $resource;
 		}
-		else{
-			if(file_exists(realpath($resource)) &&  getimagesize($resource)){
-				return imagecreatefromstring(file_get_contents($resource));
+
+		if(is_string($resource)){
+
+			$realpath = realpath($resource);
+
+			if($realpath === false){
+				error_log( 'PHasher: realpath() could not resolve path: ' . $resource );
+				return null;
 			}
+
+			if(!file_exists($realpath)){
+				error_log( 'PHasher: file does not exist: ' . $realpath );
+				return null;
+			}
+
+			$gd = imagecreatefromstring(file_get_contents($realpath));
+
+			if(!($gd instanceof GdImage)){
+				error_log( 'PHasher: imagecreatefromstring() failed for: ' . $realpath );
+				return null;
+			}
+
+			return $gd;
 		}
+
+		error_log( 'PHasher: unexpected resource type: ' . gettype($resource) );
+		return null;
 	}
 
 	/* return a perceptual hash as a string. Hex or binary. */
