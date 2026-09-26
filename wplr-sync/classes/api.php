@@ -79,6 +79,8 @@ class Meow_WPLR_Sync_API {
 				$this->linkinfo_upload( $args );
 			else if ( $args->action === 'linkinfo' )
 				$this->linkinfo( $args );
+			else if ( $args->action === 'linkinfo_bulk' )
+				$this->linkinfo_bulk( $args );
 			else if ( $args->action === 'list_unlinks' )
 				$this->list_unlinks( $args );
 			else if ( $args->action === 'list_sync_media' )
@@ -356,6 +358,14 @@ class Meow_WPLR_Sync_API {
 		global $wplr;
 		$linkinfo = $wplr->linkinfo_media( $args->wp_id );
 		return $this->response( $linkinfo );
+	}
+
+	// Get LinkInfo (without the hash) for many Media IDs at once
+	function linkinfo_bulk( $args ) {
+		global $wplr;
+		$wp_ids = isset( $args->wp_ids ) ? (array)$args->wp_ids : array();
+		$list = $wplr->linkinfo_bulk( $wp_ids );
+		return $this->response( $list );
 	}
 
 	// List files (the Media IDs) that are not linked

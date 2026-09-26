@@ -35,6 +35,9 @@ class Meow_WPLR_Sync_LRInfo {
 	}
 
 	public static function fromRow( $row ) {
+		// No row means no link: returning an all-null LRInfo would look like a success to the client.
+		if ( empty( $row ) )
+			return null;
 		$instance = new self();
 		$instance->lr_id = $row->lr_id;
 		$instance->lr_file = $row->lr_file;

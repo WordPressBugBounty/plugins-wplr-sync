@@ -294,6 +294,48 @@ class Meow_WPLR_Sync_Core {
 		return $r;
 	}
 
+	function get_db_columns( $table ) {
+		global $wpdb;
+		$columns = $wpdb->get_col( $wpdb->prepare(
+			"SELECT column_name FROM information_schema.columns WHERE table_schema = %s AND table_name = %s",
+			$wpdb->dbname, $table ) );
+		return array_map( 'strtolower', (array)$columns );
+	}
+
+	function has_db_table( $table ) {
+		global $wpdb;
+		return (bool)$wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
+			$wpdb->dbname, $table ) );
+	}
+
+	function has_db_primary_key( $table ) {
+		global $wpdb;
+		return (bool)$wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(1) FROM information_schema.table_constraints
+			WHERE table_schema = %s AND table_name = %s AND constraint_name = 'PRIMARY'",
+			$wpdb->dbname, $table ) );
+	}
+
+	// Adds a column the way dbDelta() can't: in a single query, so an AUTO_INCREMENT column is created
+	// together with its primary key, and with the MySQL error returned instead of thrown away.
+	function add_db_column( $table, $column, $definition ) {
+		global $wpdb;
+		$suppress = $wpdb->suppress_errors( true );
+		$wpdb->query( "ALTER TABLE `$table` ADD COLUMN `$column` $definition" );
+		$error = $wpdb->last_error;
+		$wpdb->suppress_errors( $suppress );
+		if ( $error ) {
+			$this->log( "[WP/LR] Could not add the column $column to $table: $error" );
+		}
+		return $error;
+	}
+
+	// Shown when the repair failed without MySQL telling us why.
+	function db_repair_hint() {
+		return 'The database user might not be allowed to modify the tables.';
+	}
+
 	function check_db() {
 		$this->log( '[WP/LR] Checking the database...' );
 
@@ -307,14 +349,11 @@ class Meow_WPLR_Sync_Core {
 	
 		// To make sure there are primary keys (Added in version 6.0+)
 		$messages[] = 'Checking '. $tbl_s . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) 
-			FROM information_schema.table_constraints 
-			WHERE table_schema = '%s'
-			AND table_name = '%s' 
-			AND constraint_name = 'PRIMARY';", $wpdb->dbname, $tbl_s ) ) ) {
+		if ( !$this->has_db_primary_key( $tbl_s ) ) {
 			meow_wplrsync_activate();
 
-			$messages[] = '🟠 Primary key added to ' . $tbl_s;
+			$messages[] = $this->has_db_primary_key( $tbl_s ) ? '🟠 Primary key added to ' . $tbl_s
+				: '🔴 Primary key could not be added to ' . $tbl_s . '. ' . $this->db_repair_hint();
 		} else {
 			$messages[] = '🟢 Primary key exists in ' . $tbl_s;
 		}
@@ -322,72 +361,113 @@ class Meow_WPLR_Sync_Core {
 
 		// Check if the table $tbl_m exists (Added in version 6.0+)
 		$messages[] = 'Checking '. $tbl_m . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_m ) ) ) {
+		if ( !$this->has_db_table( $tbl_m ) ) {
 			meow_wplrsync_activate();
 
-			$messages[] = '🟠 Table ' . $tbl_m . ' created.';
+			$messages[] = $this->has_db_table( $tbl_m ) ? '🟠 Table ' . $tbl_m . ' created.'
+				: '🔴 Table ' . $tbl_m . ' could not be created. ' . $this->db_repair_hint();
 		} else {
 			$messages[] = '🟢 Table ' . $tbl_m . ' exists.';
 		}
 	
 		// Check if the table $tbl_r exists
 		$messages[] = 'Checking '. $tbl_r . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_r ) ) ) {
+		if ( !$this->has_db_table( $tbl_r ) ) {
 			meow_wplrsync_activate();
 
-			$messages[] = '🟠 Table ' . $tbl_r . ' created.';
+			$messages[] = $this->has_db_table( $tbl_r ) ? '🟠 Table ' . $tbl_r . ' created.'
+				: '🔴 Table ' . $tbl_r . ' could not be created. ' . $this->db_repair_hint();
 		} else {
 			$messages[] = '🟢 Table ' . $tbl_r . ' exists.';
 		}
 
 		// Check if the table $tbl_c exists (Added in version 6.0+)
 		$messages[] = 'Checking '. $tbl_c . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';", $wpdb->dbname, $tbl_c ) ) ) {
+		if ( !$this->has_db_table( $tbl_c ) ) {
 			meow_wplrsync_activate();
 
-			$messages[] = '🟠 Table ' . $tbl_c . ' created.';
+			$messages[] = $this->has_db_table( $tbl_c ) ? '🟠 Table ' . $tbl_c . ' created.'
+				: '🔴 Table ' . $tbl_c . ' could not be created. ' . $this->db_repair_hint();
 		} else {
 			$messages[] = '🟢 Table ' . $tbl_c . ' exists.';
 		}
 	
-		// Check if the new column 'source' exists in collections table (Added in version 6.0+)
-		$messages[] = 'Checking column source in ' . $tbl_c . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'source' ) ) ) {
-			meow_wplrsync_activate();
+		// The columns of every table, with the definition they need to be created with. Same schema as
+		// meow_wplrsync_activate(), but dbDelta() can't be trusted to repair an existing table: it adds the
+		// column first and the primary key in a later query, so MySQL rejects an AUTO_INCREMENT column with
+		// "there can be only one auto column and it must be defined as a key" - and dbDelta() runs its
+		// queries without ever looking at the result, so the failure was invisible and Repair DB reported
+		// everything green while syncing kept failing with "Unknown column 'wp_id' in 'field list'".
+		// The ALTER TABLE is therefore run here as well, and its error is kept so it can be displayed.
+		$expected = array(
+			$tbl_s => array(
+				'id' => 'BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST',
+				'wp_id' => 'BIGINT(20) NULL',
+				'lr_id' => 'BIGINT(20) NULL',
+				'lr_file' => 'TINYTEXT NULL',
+				'lastsync' => 'DATETIME NULL',
+			),
+			$tbl_c => array(
+				'wp_col_id' => 'BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST',
+				'source' => 'TINYTEXT NULL',
+				'lr_col_id' => 'BIGINT(20) NULL',
+				'wp_folder_id' => 'BIGINT(20) NULL',
+				'name' => 'TINYTEXT NULL',
+				'slug' => 'TINYTEXT NULL',
+				'is_folder' => 'TINYINT(1) NOT NULL DEFAULT 0',
+				'featured_id' => 'BIGINT(20) NULL',
+				'lastsync' => 'DATETIME NULL',
+			),
+			$tbl_r => array(
+				'id' => 'BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST',
+				'wp_col_id' => 'BIGINT(20) NULL',
+				'wp_id' => 'BIGINT(20) NULL',
+				'sort' => 'INT(11) DEFAULT 0',
+			),
+			$tbl_m => array(
+				'meta_id' => 'BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST',
+				'name' => 'TINYTEXT NULL',
+				'id' => 'BIGINT(20) NULL',
+				'value' => 'LONGTEXT NULL',
+			),
+		);
+		foreach ( $expected as $table => $definitions ) {
+			$messages[] = 'Checking the columns of ' . $table . '...';
+			$missing = array_diff( array_keys( $definitions ), $this->get_db_columns( $table ) );
+			if ( empty( $missing ) ) {
+				$messages[] = '🟢 All the columns exist in ' . $table;
+				continue;
+			}
 
-			$messages[] = '🟠 Column source added to ' . $tbl_c;
-		} else {
-			$messages[] = '🟢 Column source exists in ' . $tbl_c;
+			// First the usual way (it also creates the table if it's gone), then by hand for whatever is left.
+			meow_wplrsync_activate();
+			$errors = array();
+			foreach ( array_diff( $missing, $this->get_db_columns( $table ) ) as $column ) {
+				$error = $this->add_db_column( $table, $column, $definitions[ $column ] );
+				if ( $error ) {
+					$errors[] = $column . ': ' . $error;
+				}
+			}
+
+			$still_missing = array_diff( $missing, $this->get_db_columns( $table ) );
+			if ( empty( $still_missing ) ) {
+				$messages[] = '🟠 Columns added to ' . $table . ': ' . implode( ', ', $missing );
+			}
+			else {
+				$messages[] = '🔴 Columns still missing in ' . $table . ': ' . implode( ', ', $still_missing ) .
+					'. ' . ( empty( $errors ) ? $this->db_repair_hint() : implode( ' ', $errors ) );
+			}
 		}
-	
-		// Check if the new column 'featured_id' exists in collections table (Added in version 6.0+)
-		$messages[] = 'Checking column featured_id in ' . $tbl_c . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'featured_id' ) ) ) {
-			meow_wplrsync_activate();
 
-			$messages[] = '🟠 Column featured_id added to ' . $tbl_c;
-		} else {
-			$messages[] = '🟢 Column featured_id exists in ' . $tbl_c;
-		}
-	
-		// Check if the new column 'slug' exists in collections table (Added in version 6.0+)
-		// Create the slugs if they aren't there.
-		$messages[] = 'Checking column slug in ' . $tbl_c . ' table...';
-		if ( !$wpdb->get_var( $wpdb->prepare( "SELECT COUNT(1) FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s' AND column_name = '%s';", $wpdb->dbname, $tbl_c, 'slug' ) ) ) {
-			meow_wplrsync_activate();
-
-			$messages[] = '🟠 Column slug added to ' . $tbl_c;
-
-			$galleries = $wpdb->get_results( "SELECT wp_col_id id, name FROM $tbl_c", OBJECT);
+		// The slug column was added in version 6.0+, so the galleries created before that have none.
+		$columns = $this->get_db_columns( $tbl_c );
+		if ( in_array( 'slug', $columns ) && in_array( 'wp_col_id', $columns ) ) {
+			$galleries = $wpdb->get_results( "SELECT wp_col_id id, name FROM $tbl_c WHERE slug IS NULL OR slug = ''", OBJECT );
 			foreach ( $galleries as $gallery ) {
 				$slug = sanitize_title( $gallery->name );
-				//error_log("{$gallery->id} => $slug");
 				$wpdb->update( $tbl_c, array( 'slug' => $slug ), array( 'wp_col_id' => $gallery->id ), array( '%s' ), array( '%d' ) );
-
 				$messages[] = "Slug $slug added to gallery {$gallery->id}";
 			}
-		} else {
-			$messages[] = '🟢 Column slug exists in ' . $tbl_c;
 		}
 
 		return $messages;
@@ -1389,7 +1469,7 @@ class Meow_WPLR_Sync_Core {
 			wr2x_generate_images( $attach_data );
 		}
 
-		$wpdb->insert( $tbl_wplr,
+		$inserted = $wpdb->insert( $tbl_wplr,
 			array(
 				'wp_id' => $wp_id,
 				'lr_id' => ( $lrinfo->lr_id == "" || $lrinfo->lr_id == null ) ? -1 : $lrinfo->lr_id,
@@ -1397,6 +1477,16 @@ class Meow_WPLR_Sync_Core {
 				'lastsync' => current_time( 'mysql' )
 			)
 		);
+
+		// The media is in the Media Library at this point, but without this row it is not linked to
+		// Lightroom, and Lightroom would keep the photo as "to be published" forever.
+		if ( $inserted === false ) {
+			$this->error = sprintf( __( "The media was uploaded (ID %d) but the link could not be written in the database table %s. Please go in the 'Extension & Debug' tab of Photo Engine and click the 'Repair DB' button, then try again. Database error: %s", 'wplr-sync' ),
+				$wp_id, $tbl_wplr, empty( $wpdb->last_error ) ? __( "none reported", 'wplr-sync' ) : $wpdb->last_error );
+			error_log( "Photo Engine: " . $this->error );
+			$this->log( $this->error, true );
+			return false;
+		}
 
 		// Update the Upload/TakenTime Date
 		$this->update_media_date( $wp_id );
@@ -1452,7 +1542,10 @@ class Meow_WPLR_Sync_Core {
 		$sync = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table_name WHERE lr_id = %d", $lrinfo->lr_id ), OBJECT );
 		$info = Meow_WPLR_Sync_LRInfo::fromRow( $sync );
 		if ( empty( $info ) ) {
-			$this->error = __( "The information about the media could not be retrieved.", 'wplr-sync' );
+			$this->error = sprintf( __( "The media was uploaded but no link was found in the database table %s for the Lightroom ID %d, so the synchronization cannot be confirmed. Please make sure the table exists (go in the 'Extension & Debug' tab of Photo Engine and click the 'Repair DB' button) and that the database user can write into it. Database error: %s", 'wplr-sync' ),
+				$table_name, $lrinfo->lr_id, empty( $wpdb->last_error ) ? __( "none reported", 'wplr-sync' ) : $wpdb->last_error );
+			error_log( "Photo Engine: " . $this->error );
+			$this->log( $this->error, true );
 			return false;
 		}
 
@@ -1503,20 +1596,45 @@ class Meow_WPLR_Sync_Core {
 		}
 	}
 
-	// Returns link info for a file at this path
-	function linkinfo_upload( $path, $meta = null, $thumbnailPath = null ) {
-		$exif = null;
-		if ( $meta == null) {
+	// Perceptual hash of an attachment, cached in the postmeta.
+	// Hashing means decoding the whole image, so without this cache, a Total Synchronization
+	// re-hashes the entire Media Library from scratch on every single run.
+	function phash_media( $wp_id, $path ) {
+		$signature = ( !empty( $path ) && file_exists( $path ) ) ?
+			( basename( $path ) . '-' . filesize( $path ) . '-' . filemtime( $path ) ) : '';
+		$cached = get_post_meta( $wp_id, '_wplr_phash', true );
+
+		// The signature is checked so that a re-uploaded or edited image is hashed again.
+		if ( is_array( $cached ) && isset( $cached['sig'], $cached['hash'] ) && $cached['sig'] === $signature )
+			return $cached['hash'] === '' ? null : $cached['hash'];
+
+		$hash = empty( $signature ) ? null : $this->pHashImage( $path );
+
+		// A failure is cached as well; otherwise a broken file is decoded again on every run.
+		update_post_meta( $wp_id, '_wplr_phash',
+			array( 'sig' => $signature, 'hash' => empty( $hash ) ? '' : $hash ) );
+		return $hash;
+	}
+
+	// Returns the EXIF creation date used for the matching, from the attachment metadata when
+	// it is available (no disk access), from the file itself otherwise.
+	function linkinfo_exif( $path, $meta = null ) {
+		if ( $meta == null ) {
 			require_once( ABSPATH . 'wp-admin/includes/image.php' );
 			$meta = wp_read_image_metadata( $path );
-			$exif = ( isset( $meta, $meta["created_timestamp"] ) && (int)$meta["created_timestamp"] > 0 ) ? date( "Y/m/d H:i:s", $meta["created_timestamp"] ) : null;
+			return ( isset( $meta["created_timestamp"] ) && (int)$meta["created_timestamp"] > 0 ) ?
+				date( "Y/m/d H:i:s", $meta["created_timestamp"] ) : null;
 		}
-		else if ( isset( $meta, $meta["image_meta"], $meta["image_meta"]["created_timestamp"] ) && (int)$meta["image_meta"]["created_timestamp"] > 0 ) {
-			$exif = date( "Y/m/d H:i:s", $meta["image_meta"]["created_timestamp"] );
-		}
+		if ( isset( $meta["image_meta"]["created_timestamp"] ) && (int)$meta["image_meta"]["created_timestamp"] > 0 )
+			return date( "Y/m/d H:i:s", $meta["image_meta"]["created_timestamp"] );
+		return null;
+	}
+
+	// Returns link info for a file at this path
+	function linkinfo_upload( $path, $meta = null, $thumbnailPath = null ) {
 		return array(
 			'wp_phash' => $this->pHashImage( empty( $thumbnailPath ) ? $path : $thumbnailPath ),
-			'wp_exif' => $exif
+			'wp_exif' => $this->linkinfo_exif( $path, $meta )
 		);
 	}
 
@@ -1531,16 +1649,49 @@ class Meow_WPLR_Sync_Core {
 		$metadata = wp_get_attachment_metadata( $wp_id );
 		$attached_file_thumb = isset( $metadata['sizes']['large']['file'] ) ?
 			str_replace( wp_basename( $attached_file ), $metadata['sizes']['large']['file'], $attached_file ) : null;
-		if ( !file_exists( $attached_file_thumb ) ) {
+		if ( empty( $attached_file_thumb ) || !file_exists( $attached_file_thumb ) ) {
 			$attached_file_thumb = null;
 		}
-		$linkinfo = $this->linkinfo_upload( $attached_file, $metadata, $attached_file_thumb );
 		return array(
-			'wp_id' => $wp_id,
+			'wp_id' => (int)$wp_id,
 			'wp_url' => wp_get_attachment_url( $wp_id ),
-			'wp_phash' => $linkinfo["wp_phash"],
-			'wp_exif' => $linkinfo["wp_exif"]
+			'wp_file' => wp_basename( $attached_file ),
+			'wp_phash' => $this->phash_media( $wp_id,
+				empty( $attached_file_thumb ) ? $attached_file : $attached_file_thumb ),
+			'wp_exif' => $this->linkinfo_exif( $attached_file, $metadata )
 		);
+	}
+
+	// Link info for many attachments at once, without the perceptual hash.
+	// The filename and the EXIF date are enough to match most of a library, and both are read
+	// from the DB only. Lightroom uses this to resolve everything it can in a few requests, and
+	// falls back to linkinfo() (which hashes) for the few medias left over.
+	function linkinfo_bulk( $wp_ids ) {
+		if ( empty( $wp_ids ) || !is_array( $wp_ids ) )
+			return array();
+		$wp_ids = array_slice( array_map( 'intval', $wp_ids ), 0, 1000 );
+
+		// Load the posts and all their metas in two queries instead of a few per attachment.
+		_prime_post_caches( $wp_ids, false, true );
+
+		$results = array();
+		foreach ( $wp_ids as $wp_id ) {
+			$original_id = $this->wpml_original_id( $wp_id );
+			if ( !wp_attachment_is_image( $original_id ) )
+				continue;
+			$attached_file = get_attached_file( $original_id );
+			$metadata = wp_get_attachment_metadata( $original_id );
+			$exif = null;
+			if ( isset( $metadata["image_meta"]["created_timestamp"] ) && (int)$metadata["image_meta"]["created_timestamp"] > 0 )
+				$exif = date( "Y/m/d H:i:s", $metadata["image_meta"]["created_timestamp"] );
+			array_push( $results, array(
+				'wp_id' => (int)$original_id,
+				'wp_url' => wp_get_attachment_url( $original_id ),
+				'wp_file' => wp_basename( $attached_file ),
+				'wp_exif' => $exif
+			) );
+		}
+		return $results;
 	}
 
 	// Returns an array of wp_id linked to this lr_id
@@ -2333,8 +2484,12 @@ class Meow_WPLR_Sync_Core {
 		// Create term
 		if ( !$is_term_exists ) {
 			$parentTermId = null;
-			if ( !empty( $inKeywordId ) && is_taxonomy_hierarchical( $taxonomy ) )
-				$parentTermId = $wplr->get_meta( $metaKey, $inKeywordId );
+			if ( !empty( $inKeywordId ) && is_taxonomy_hierarchical( $taxonomy ) && $inKeywordId != $keywordId ) {
+				// Through get_term_from_folder, so that a broken parent is repaired as well.
+				// Without this, wp_insert_term would fail with a "parent does not exist" error.
+				$parentTerm = $this->get_term_from_folder( $inKeywordId, $taxonomy, $metaKey );
+				$parentTermId = empty( $parentTerm ) ? null : $parentTerm->term_id;
+			}
 			$result = wp_insert_term( $keyword['name'], $taxonomy, $parentTermId ? array( 'parent' => $parentTermId ) : null );
 			if ( is_wp_error( $result ) ) {
 				error_log( "Issue while creating the keyword " . $keyword['name'] . "." );
@@ -2433,14 +2588,62 @@ class Meow_WPLR_Sync_Core {
 			return;
 		$parentTermId = $wplr->get_meta( $termMetaKey, $folderId );
 		if ( empty( $parentTermId ) ) {
-			error_log( "Cannot find the term for $folderId." );
-			return;
+			// No mapping at all (it was never created, or it was removed manually).
+			$term = $this->repair_term_from_folder( $folderId, $taxonomy, $termMetaKey );
+			if ( empty( $term ) )
+				error_log( "Cannot find the term for $folderId." );
+			return $term;
 		}
 		$term = get_term_by( 'term_id', $parentTermId, $taxonomy );
+		if ( empty( $term ) ) {
+			// The mapping is stale: the term was deleted, or it belongs to another taxonomy
+			// (that happens when the taxonomy used for the sync is modified in the settings).
+			$term = $this->repair_term_from_folder( $folderId, $taxonomy, $termMetaKey );
+		}
 		if ( empty( $term ) ) {
 			error_log( "Cannot find information for the term $parentTermId (folder: $folderId, termMetaKey: $termMetaKey, taxonomy: $taxonomy)." );
 			return;
 		}
+		return $term;
+	}
+
+	// A mapping (in the meta table) points to a term which doesn't exist in this taxonomy anymore.
+	// For the keywords, we know their name, so the term can be re-created and the mapping updated.
+	function repair_term_from_folder( $folderId, $taxonomy, $termMetaKey ) {
+		global $wplr;
+		static $repairing = array();
+
+		// Only the keywords are handled by the core; the other mappings belong to the extensions,
+		// and their names are not available here.
+		if ( $termMetaKey !== 'wplr_keyword_tax_id' )
+			return null;
+
+		// If the taxonomy isn't registered (yet), the mapping is probably fine, let's not touch it.
+		if ( !taxonomy_exists( $taxonomy ) ) {
+			error_log( "The taxonomy $taxonomy is not registered, the keywords cannot be synchronized." );
+			return null;
+		}
+
+		// Avoid an endless loop if the keywords have a circular hierarchy.
+		if ( isset( $repairing[$folderId] ) )
+			return null;
+
+		$name = $wplr->get_meta( 'tag_name', $folderId );
+		if ( empty( $name ) )
+			return null;
+
+		// The mapping is not deleted; create_taxonomy overwrites it (set_meta with unique),
+		// so if the term cannot be created, the repair will simply be attempted again later.
+		$repairing[$folderId] = true;
+		$this->create_taxonomy( $folderId, $wplr->get_meta( 'tag_parent', $folderId ),
+			array( 'name' => $name ), $taxonomy, $termMetaKey );
+		unset( $repairing[$folderId] );
+
+		$termId = $wplr->get_meta( $termMetaKey, $folderId );
+		$term = empty( $termId ) ? null : get_term_by( 'term_id', $termId, $taxonomy );
+		if ( empty( $term ) )
+			return null;
+		error_log( "The keyword '$name' ($folderId) was pointing to a missing term; it is now mapped to the term $termId." );
 		return $term;
 	}
 

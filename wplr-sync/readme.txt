@@ -4,9 +4,9 @@ Tags: lightroom, sync, export, image, manager
 Donate link: https://www.patreon.com/meowapps
 License: GPLv3
 Requires at least: 6.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.5.5
+Stable tag: 6.5.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,16 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.5.6 (2026/09/26) =
+* Add: New `linkinfo_bulk` API method to fetch link info for several media items in one call.
+* Update: Repair DB now also checks primary keys and individual table columns, not just missing tables.
+* Update: Repair DB results are shown in a modal instead of a browser alert, with clearer error messages.
+* Update: The license screen now explains what actually went wrong instead of showing a generic error.
+* Update: Refreshed the dashboard screen.
+* Fix: A server that cannot reach the license server no longer hangs the admin.
+* Fix: Added error handling when linking media and synchronizing the database so failures are reported instead of silently breaking.
+* Fix: Term repair no longer errors when a taxonomy term is missing.
 
 = 6.5.5 (2026/08/17) =
 * Update: Minimum required PHP version is now 8.1.
