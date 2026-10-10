@@ -39,7 +39,7 @@ class Meow_WPLR_Sync_API {
 		}
 		// Upload
 		else if ( isset( $_POST['action'] ) && $_POST['action'] === 'sync' ) {
-			if ( !$user = $this->auth( $_POST['token'] ) ) {
+			if ( !$user = $this->auth( isset( $_POST['token'] ) ? wp_unslash( $_POST['token'] ) : null ) ) {
 				$this->response( null, false, $this->error );
 				$this->finalize();
 			}
@@ -50,14 +50,16 @@ class Meow_WPLR_Sync_API {
 		else {
 			$body = file_get_contents('php://input');
 			$args = json_decode( $body );
-			if ( !$user = $this->auth( $args->token ) ) {
+			if ( !is_object( $args ) || !isset( $args->action ) ) {
+				$this->response( null, false, "Invalid request." );
+				$this->finalize();
+			}
+			if ( !$user = $this->auth( isset( $args->token ) ? $args->token : null ) ) {
 				$this->response( null, false, $this->error );
 				$this->finalize();
 			}
 			$wplr->log( "Action: " . $args->action );
-			if ( !$user = $this->auth( $args->token ) )
-				$this->response( null, false, $this->error );
-			else if ( $args->action === 'presync' )
+			if ( $args->action === 'presync' )
 				$this->presync( $args );
 			else if ( $args->action === 'sync_collection' )
 				$this->sync_collection( $args );
@@ -116,44 +118,67 @@ class Meow_WPLR_Sync_API {
 	function auth( $token ) {
 		global $wplr, $wpdb;
 
-
-		if ( empty( $token ) ) {
-			$this->error = "Authentification is missing.";
+		// Failed attempts are counted per IP: a token can't be guessed by hammering the endpoint.
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$fail_key = 'wplr_api_fail_' . md5( $ip );
+		$fails = (int) get_transient( $fail_key );
+		if ( $fails >= 20 ) {
+			$this->error = "Too many failed attempts. Please try again in 15 minutes.";
 			$wplr->log( $this->error );
 			return false;
 		}
-		
-		//* DEBUG: allow to authenticate as admin with a hardcoded token (for testing purposes only)
-		// if ( $token == "MEOW_TOKEN" ) {
 
-		// 	$this->user = get_userdata( 1 );
-		// 	if ( empty( $this->user ) ) {
-		// 		$this->error = "User admin does not exist.";
-		// 		$wplr->log( $this->error );
-		// 		return false;
-		// 	}
-
-		// 	$wplr->log( "Authenticated as admin" );
-		// 	return $this->user;
-		// }
+		if ( !is_string( $token ) || strlen( $token ) < 12 || strlen( $token ) > 128 ) {
+			$this->error = "Authentification is missing.";
+			$wplr->log( $this->error );
+			set_transient( $fail_key, $fails + 1, 15 * MINUTE_IN_SECONDS );
+			return false;
+		}
 
 		$prefix = defined( 'BLOG_ID_CURRENT_SITE' ) ? $wpdb->get_blog_prefix( BLOG_ID_CURRENT_SITE ) : $wpdb->prefix;
 		$tbl_meta = defined('CUSTOM_USER_META_TABLE' ) ? CUSTOM_USER_META_TABLE : $prefix . "usermeta";
-		$userId = $wpdb->get_var( $wpdb->prepare( "SELECT user_id FROM $tbl_meta
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT user_id, meta_value FROM $tbl_meta
 			WHERE meta_value = %s AND meta_key = %s", $token, 'wplr_auth_token' ) );
-		if ( empty( $userId ) ) {
-			$this->error = "Token '$token' seems to be invalid.";
+		// The SQL match can be case-insensitive (collation): the token must match exactly.
+		if ( empty( $row ) || !is_string( $row->meta_value ) || !hash_equals( $row->meta_value, $token ) ) {
+			$this->error = "This token seems to be invalid.";
 			$wplr->log( $this->error );
+			set_transient( $fail_key, $fails + 1, 15 * MINUTE_IN_SECONDS );
 			return false;
 		}
-		$this->user = get_userdata( $userId );
+		$this->user = get_userdata( $row->user_id );
 		if ( empty( $this->user ) ) {
 			$this->error = 'User does not exist.';
 			$wplr->log( $this->error );
 			return false;
 		}
+
+		// Act as this user, so every capability check below applies to them.
+		wp_set_current_user( $this->user->ID );
+		if ( !current_user_can( 'upload_files' ) ) {
+			$this->error = 'This user is not allowed to upload files.';
+			$wplr->log( $this->error );
+			$this->user = null;
+			return false;
+		}
 		$wplr->log( "Authenticated as " . $this->user->user_login );
 		return $this->user;
+	}
+
+	// The attachment(s) behind a Lightroom ID must be editable (or deletable) by the authenticated user.
+	function can_on_lr_id( $lr_id, $cap ) {
+		global $wplr;
+		foreach ( (array) $wplr->list_wpids( (int) $lr_id ) as $row ) {
+			if ( !empty( $row->wp_id ) && !current_user_can( $cap, (int) $row->wp_id ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	function can_on_wp_id( $wp_id, $cap ) {
+		$wp_id = (int) $wp_id;
+		return $wp_id > 0 && get_post_type( $wp_id ) === 'attachment' && current_user_can( $cap, $wp_id );
 	}
 
 	/**
@@ -236,6 +261,11 @@ class Meow_WPLR_Sync_API {
 		$lrinfo->tags = $args["tags"];
 		$file = $_FILES['file']['tmp_name'];
 
+		// Syncing over an existing photo replaces its file: the user must be allowed to edit it.
+		if ( !$this->can_on_lr_id( $args["id"], 'edit_post' ) ) {
+			return $this->response( null, false, 'You are not allowed to edit this media.' );
+		}
+
 		if ( !isset( $args["wp_col_id"] ) || $args["wp_col_id"] == null )
 			$args["wp_col_id"] = -1;
 		if ( !$sync = $wplr->sync_media( $lrinfo, $file, $args["wp_col_id"], $this->user->ID ) ) {
@@ -300,6 +330,10 @@ class Meow_WPLR_Sync_API {
 	function delete_collection( $args ) {
 		global $wplr;
 		$res = false;
+		// Deleting a collection also deletes its photos, which may belong to anyone.
+		if ( !current_user_can( 'delete_others_posts' ) ) {
+			return $this->response( null, false, 'You are not allowed to delete collections.' );
+		}
 		if ( property_exists( $args, 'remoteId' ) )
 			$res = $wplr->delete_collection( $args->remoteId );
 		return $this->response( $res );
@@ -311,7 +345,10 @@ class Meow_WPLR_Sync_API {
 		$collectionId = -1;
 		if ( property_exists( $args, 'collection_id' ) )
 			$collectionId = $args->collection_id;
-		$list = $wplr->delete_media( $args->lr_id, $collectionId );
+		if ( !property_exists( $args, 'lr_id' ) || !$this->can_on_lr_id( $args->lr_id, 'delete_post' ) ) {
+			return $this->response( null, false, 'You are not allowed to delete this media.' );
+		}
+		$list = $wplr->delete_media( (int) $args->lr_id, $collectionId );
 		return $this->response( $list );
 	}
 
@@ -334,14 +371,24 @@ class Meow_WPLR_Sync_API {
 	// Unlink
 	function unlink( $args ) {
 		global $wplr;
-		$res = $wplr->unlink_media( $args->lr_id, $args->wp_id );
+		$wp_id = property_exists( $args, 'wp_id' ) ? (int) $args->wp_id : 0;
+		$lr_id = property_exists( $args, 'lr_id' ) ? (int) $args->lr_id : 0;
+		if ( $wp_id ? !$this->can_on_wp_id( $wp_id, 'edit_post' ) : !$this->can_on_lr_id( $lr_id, 'edit_post' ) ) {
+			return $this->response( null, false, 'You are not allowed to edit this media.' );
+		}
+		$res = $wplr->unlink_media( $lr_id, $wp_id );
 		return $this->response( $res );
 	}
 
 	// Get LinkInfo for the Media ID
 	function link( $args ) {
 		global $wplr;
-		$res = $wplr->link_media( $args->lr_id, $args->wp_id );
+		// Linking decides which attachment a later sync or delete will touch.
+		$wp_id = property_exists( $args, 'wp_id' ) ? (int) $args->wp_id : 0;
+		if ( !$this->can_on_wp_id( $wp_id, 'edit_post' ) ) {
+			return $this->response( null, false, 'You are not allowed to link this media.' );
+		}
+		$res = $wplr->link_media( (int) $args->lr_id, $wp_id );
 		return $this->response( $res );
 	}
 
@@ -356,7 +403,10 @@ class Meow_WPLR_Sync_API {
 	// Get LinkInfo for the Media ID
 	function linkinfo( $args ) {
 		global $wplr;
-		$linkinfo = $wplr->linkinfo_media( $args->wp_id );
+		if ( !$this->can_on_wp_id( property_exists( $args, 'wp_id' ) ? $args->wp_id : 0, 'edit_post' ) ) {
+			return $this->response( null, false, 'You are not allowed to access this media.' );
+		}
+		$linkinfo = $wplr->linkinfo_media( (int) $args->wp_id );
 		return $this->response( $linkinfo );
 	}
 
@@ -364,6 +414,9 @@ class Meow_WPLR_Sync_API {
 	function linkinfo_bulk( $args ) {
 		global $wplr;
 		$wp_ids = isset( $args->wp_ids ) ? (array)$args->wp_ids : array();
+		$wp_ids = array_values( array_filter( array_map( 'intval', $wp_ids ), function ( $id ) {
+			return $this->can_on_wp_id( $id, 'edit_post' );
+		} ) );
 		$list = $wplr->linkinfo_bulk( $wp_ids );
 		return $this->response( $list );
 	}

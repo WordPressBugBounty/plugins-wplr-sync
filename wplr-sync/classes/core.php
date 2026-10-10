@@ -259,6 +259,10 @@ class Meow_WPLR_Sync_Core {
 	}
 
 	function profile_update( $user_id ) {
+		// Only users who can upload get a Lightroom token; the others have no use for one.
+		if ( !user_can( $user_id, 'upload_files' ) ) {
+			return;
+		}
 		$token = get_user_meta( $user_id, 'wplr_auth_token', true );
 		if ( empty( $token ) ) {
 			$token = $this->generate_auth_token( $user_id );
@@ -271,20 +275,9 @@ class Meow_WPLR_Sync_Core {
 	 * @return string The new token
 	 */
 	function generate_auth_token( $userId ) {
-		static $MIN_LENGTH = 24;
-		static $MAX_LENGTH = 32;
-
-		// Seed
-		list( $usec, $sec ) = explode( ' ', microtime() );
-		$seed = $sec + $usec * 1000000;
-		srand( $seed );
-
-		// Compose
-		$r = '';
-		$chars = str_split( '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' );
-		$nChars = count( $chars );
-		$length = rand( $MIN_LENGTH, $MAX_LENGTH );
-		for ( $i = 0; $i < $length; $i++ ) $r .= $chars[rand( 0, $nChars - 1 )];
+		// A cryptographically secure token. It used to come from rand() seeded with the time,
+		// which made it guessable from the moment it was created.
+		$r = wp_generate_password( 32, false, false );
 
 		// Save
 		if ( update_user_meta( $userId, 'wplr_auth_token', $r ) === false ) {
