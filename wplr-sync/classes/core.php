@@ -1970,12 +1970,14 @@ class Meow_WPLR_Sync_Core {
 		$current = $this->get_collection( $wp_col_id );
 		$type = $current->is_folder ? 'folder' : 'collection';
 		$slug = $this->make_slug_unique( $wp_col_id, empty( $slug ) ? sanitize_title( $name ) : $slug );
+		// Stored escaped, like create_collection(): the organizer renders names as HTML.
+		$stored_name = htmlspecialchars( $name, ENT_QUOTES, 'UTF-8' );
 
 		// If name is different, we update it
-		if ( $name != $current->name ) {
+		if ( $stored_name != $current->name ) {
 			$wpdb->query( $wpdb->prepare( "UPDATE $tbl_col
 				SET name = %s, slug = %s, lastsync = %s
-				WHERE wp_col_id = %d", $name, $slug, current_time( 'mysql' ), $current->wp_col_id )
+				WHERE wp_col_id = %d", $stored_name, $slug, current_time( 'mysql' ), $current->wp_col_id )
 			);
 			do_action( "wplr_update_$type" . ( $current->is_folder ? 'folder' : 'gallery' ), 
 				(int)$current->wp_col_id, array( 'name' => $name ) );

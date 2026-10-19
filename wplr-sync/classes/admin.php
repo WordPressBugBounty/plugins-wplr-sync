@@ -154,7 +154,8 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 	 */
 	function get_user_token() {
 		$user_id = get_current_user_id();
-		if ( !$user_id ) {
+		// The API refuses users without upload_files anyway, so never create or expose a token for them.
+		if ( !$user_id || !current_user_can( 'upload_files' ) ) {
 			return null;
 		}
 		$token = get_user_meta( $user_id, 'wplr_auth_token', true );

@@ -658,6 +658,9 @@ class Meow_WPLR_Sync_Rest
 		$afterDelete = isset( $params['afterDelete'] ) ? (int)$params['afterDelete'] : false;
 
 		list($result, $message, $code) = $this->validate_link_unlink($lr_id, $wp_id);
+		if ( $result && $afterDelete && !current_user_can( 'delete_post', $wp_id ) ) {
+			list($result, $message, $code) = [ false, 'You are not allowed to delete this media.', 403 ];
+		}
 
 		if (!$result) {
 			return new WP_REST_Response([
@@ -1214,6 +1217,10 @@ class Meow_WPLR_Sync_Rest
 		}
 		if ( $lr_id === '' || $lr_id === null || $wp_id === '' || $wp_id === null ) {
 			return [ false, 'Some information is missing.', 422 ];
+		}
+		// upload_files alone let an Author link, unlink (and delete) anyone's media.
+		if ( get_post_type( $wp_id ) !== 'attachment' || !current_user_can( 'edit_post', $wp_id ) ) {
+			return [ false, 'You are not allowed to edit this media.', 403 ];
 		}
 		return [ true, null, null ];
 	}

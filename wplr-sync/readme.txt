@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.5.7
+Stable tag: 6.5.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,11 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.5.8 (2026/10/19) =
+* Fix: Security: Renaming a gallery or folder now sanitizes the name the same way creating one does (reported by Mahammad Mammadov via WPScan).
+* Fix: Security: Linking, unlinking or deleting a photo now checks your permissions on that photo (reported by Mahammad Mammadov via WPScan).
+* Fix: Users who cannot upload files no longer receive a Lightroom sync token in their admin pages.
 
 = 6.5.7 (2026/10/10) =
 * Fix: Security: The Lightroom sync API now requires a user who can upload files and checks their rights on every photo it edits, links or deletes.
