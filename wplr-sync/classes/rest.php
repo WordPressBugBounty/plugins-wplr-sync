@@ -1109,7 +1109,7 @@ class Meow_WPLR_Sync_Rest
 
 	function rest_update_media($request) {
 		$params = $request->get_json_params();
-		$wp_id = isset( $params['id'] ) ? $params['id'] : '';
+		$wp_id = isset( $params['id'] ) ? intval( $params['id'] ) : 0;
 		$title = isset( $params['title'] ) ? $params['title'] : '';
 		$description = isset( $params['description'] ) ? $params['description'] : '';
 		$caption = isset( $params['caption'] ) ? $params['caption'] : '';
@@ -1119,6 +1119,13 @@ class Meow_WPLR_Sync_Rest
 				'success' => false,
 				'message' => 'The id to move or current collection id is missing.',
 			], 400 );
+		}
+		// wp_update_post() checks no rights, so upload_files alone let an Author rewrite any post or page.
+		if ( get_post_type( $wp_id ) !== 'attachment' || !current_user_can( 'edit_post', $wp_id ) ) {
+			return new WP_REST_Response([
+				'success' => false,
+				'message' => 'You are not allowed to edit this media.',
+			], 403 );
 		}
 		try {
 			$post = [

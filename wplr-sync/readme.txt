@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.5.8
+Stable tag: 6.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,18 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.6.0 (2026/10/24) =
+* Fix: Security: Editing a photo's title, caption or alt text now checks your permissions on that photo (reported by Mahammad Mammadov via WPScan).
+* Fix: Media names with quotes or special characters are no longer shown double-escaped.
+* Fix: The pager now works correctly in the folder view.
+* Fix: The media list now refreshes properly after an update.
+* Update: The public API option is now off by default; existing settings are kept.
+* Update: Reworded some labels and descriptions in the settings.
+
+= 6.5.9 (2026/10/22) =
+* Update: The License tab now explains Pro to free users and invites Pro buyers to activate their license.
+* Update: The Free badge and logo in the plugin header now link to the Pro page.
 
 = 6.5.8 (2026/10/19) =
 * Fix: Security: Renaming a gallery or folder now sanitizes the name the same way creating one does (reported by Mahammad Mammadov via WPScan).

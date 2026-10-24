@@ -197,7 +197,7 @@ class Meow_WPLR_Sync_Core {
 
 		// APIs
 		new Meow_WPLR_Sync_API();
-		if ( get_option( "wplr_public_api", true ) ) {
+		if ( get_option( "wplr_public_api", false ) ) {
 			new Meow_WPLR_Sync_Public_API();
 		}
 
@@ -1970,7 +1970,7 @@ class Meow_WPLR_Sync_Core {
 		$current = $this->get_collection( $wp_col_id );
 		$type = $current->is_folder ? 'folder' : 'collection';
 		$slug = $this->make_slug_unique( $wp_col_id, empty( $slug ) ? sanitize_title( $name ) : $slug );
-		// Stored escaped, like create_collection(): the organizer renders names as HTML.
+		// Stored escaped, like create_collection(). The organizer decodes names before showing them (Helpers.js).
 		$stored_name = htmlspecialchars( $name, ENT_QUOTES, 'UTF-8' );
 
 		// If name is different, we update it
@@ -1979,7 +1979,10 @@ class Meow_WPLR_Sync_Core {
 				SET name = %s, slug = %s, lastsync = %s
 				WHERE wp_col_id = %d", $stored_name, $slug, current_time( 'mysql' ), $current->wp_col_id )
 			);
-			do_action( "wplr_update_$type" . ( $current->is_folder ? 'folder' : 'gallery' ), 
+			do_action( "wplr_update_$type", (int)$current->wp_col_id, array( 'name' => $name ) );
+			// Deprecated: the hook name used to be built wrongly (wplr_update_folderfolder, wplr_update_collectiongallery).
+			// Still fired in case anything hooked those names.
+			do_action( "wplr_update_$type" . ( $current->is_folder ? 'folder' : 'gallery' ),
 				(int)$current->wp_col_id, array( 'name' => $name ) );
 		}
 	}
