@@ -56,8 +56,10 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 	function admin_enqueue_scripts() {
 
 		// Load the scripts
-		$physical_file = WPLR_SYNC_PATH . '/app/index.js';
-		$cache_buster = file_exists( $physical_file ) ? filemtime( $physical_file ) : WPLR_SYNC_VERSION;
+		// Both bundles share one version, so it follows whichever changed last: a change that only
+		// touches the vendor bundle (NekoUI) would otherwise keep its old copy in the browser cache.
+		$bundles = array_filter( array( WPLR_SYNC_PATH . '/app/index.js', WPLR_SYNC_PATH . '/app/vendor.js' ), 'file_exists' );
+		$cache_buster = $bundles ? max( array_map( 'filemtime', $bundles ) ) : WPLR_SYNC_VERSION;
 		wp_register_script( 'pEngine-vendor', WPLR_SYNC_URL . 'app/vendor.js',
 			['wp-element', 'wp-i18n'], $cache_buster
 		);
@@ -84,6 +86,8 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 			'prefix' => WPLR_SYNC_PREFIX,
 			'domain' => WPLR_SYNC_DOMAIN,
 			'is_pro' => true,
+			// Installed vs latest version for the header line (common/premium/renewal.php).
+			'version_info' => apply_filters( WPLR_SYNC_PREFIX . '_meowapps_version_info', null ),
 			'is_registered' => true,
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
 			'hierarchy' => $collections,

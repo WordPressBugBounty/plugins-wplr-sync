@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.6.0
+Stable tag: 6.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,10 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.6.1 (2026/11/03) =
+* Add: New Meow Apps dashboard with plugin status, health checks and speed tester.
+* Update: Synced the shared Meow Apps common code used by the admin screens.
 
 = 6.6.0 (2026/10/24) =
 * Fix: Security: Editing a photo's title, caption or alt text now checks your permissions on that photo (reported by Mahammad Mammadov via WPScan).
