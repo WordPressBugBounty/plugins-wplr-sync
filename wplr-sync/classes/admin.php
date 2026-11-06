@@ -570,16 +570,17 @@ class Meow_WPLR_Sync_Admin extends MeowKit_WPLR_Admin {
 		function display_internal_hierarchy( $hierarchy, $level = 0, $mode = '', $hasDeleted = false ) {
 			global $wpdb;
 			$tbl_r = $wpdb->prefix . 'lrsync_relations';
-			$page = empty( $_GET['page'] ) ? 'wplr-collections-tags-menu' : $_GET['page'];
+			$page = empty( $_GET['page'] ) ? 'wplr-collections-tags-menu' : sanitize_key( $_GET['page'] );
 			echo '<div class="hierarchy-level-' . $level . '">';
 			if ( $level > 0 )
 				echo '<div style="margin-left: 10px; border-left: 1px dotted gray; padding-left: 10px;">';
 			foreach ( $hierarchy as $c ) {
 
 				if ( $mode == 'keywords' ) {
+					// Keyword names come from the sync API: escape them (stored XSS, WPScan, 6.6.1).
 					echo '<div class="wplr-elem wplr-keyword" wplr-elem-type="keyword" wplr-elem-id="' .
-						$c['id'] . '"	wplr-elem-name="' . $c['name'] . '"><span class="dashicons dashicons-carrot"></span> <b>' .
-						$c['name'] . '</b> <small>(ID: ' . $c['id'] . ', Photos: ' . $c['count'] . ')</small>';
+						esc_attr( $c['id'] ) . '"	wplr-elem-name="' . esc_attr( $c['name'] ) . '"><span class="dashicons dashicons-carrot"></span> <b>' .
+						esc_html( $c['name'] ) . '</b> <small>(ID: ' . esc_html( $c['id'] ) . ', Photos: ' . esc_html( $c['count'] ) . ')</small>';
 					echo '<form action="" method="post" style="display: inline;">
 						<input type="hidden" name="page" value="' . $page . '">
 						<input type="hidden" name="action" value="' . $mode . '">';

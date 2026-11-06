@@ -933,9 +933,17 @@ class Meow_WPLR_Sync_Core {
 			$table_name = $wpdb->prefix . "lrsync";
 			$sync_files = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $table_name WHERE lr_id = %d", $lr_id), OBJECT );
 			$delete_count = 0;
+			$skipped = 0;
 			foreach ( $sync_files as $sync ) {
+				// Every route ends here (REST, sync API, admin), so the check lives here: an Author
+				// could delete an admin's images through a gallery or a shared Lightroom ID (WPScan, 6.6.1).
+				if ( !current_user_can( 'delete_post', $sync->wp_id ) ) {
+					$skipped++;
+					continue;
+				}
 				if ( wp_delete_attachment( $sync->wp_id, true ) ) {
-					$wpdb->query( $wpdb->prepare( "DELETE FROM $table_name WHERE lr_id = %d", $lr_id ) );
+					// Only this attachment's link: a skipped one keeps its own.
+					$wpdb->query( $wpdb->prepare( "DELETE FROM $table_name WHERE lr_id = %d AND wp_id = %d", $lr_id, $sync->wp_id ) );
 					$delete_count++;
 
 					//TODO: DELETE KEYWORDS
@@ -950,8 +958,8 @@ class Meow_WPLR_Sync_Core {
 
 				}
 			}
-			if ( count( $sync_files ) < 1 ) {
-				// There were no files to remove
+			if ( count( $sync_files ) < 1 || ( $delete_count === 0 && $skipped === count( $sync_files ) ) ) {
+				// There were no files to remove, or none this user may delete
 				return true;
 			}
 			else if ( $delete_count > 0 ) {
@@ -1017,6 +1025,14 @@ class Meow_WPLR_Sync_Core {
 			$this->error = __( "Attachment " . ($wp_id ? $wp_id : "[null]") . " does not exist or is not an image.", 'wplr-sync' );
 			return false;
 		}
+		// A Lightroom ID shared with someone else's media would let a later delete reach it (WPScan, 6.6.1).
+		$others = $wpdb->get_col( $wpdb->prepare( "SELECT wp_id FROM $table_name WHERE lr_id = %d AND wp_id <> %d", $lr_id, $wp_id ) );
+		foreach ( $others as $other ) {
+			if ( !current_user_can( 'edit_post', (int) $other ) ) {
+				$this->error = __( "This Lightroom ID is already linked to a media you can't edit.", 'wplr-sync' );
+				return false;
+			}
+		}
 		$sync = $this->get_sync_info( $wp_id );
 		if ( !$sync ) {
 			$wpdb->insert( $table_name,
@@ -1081,12 +1097,14 @@ class Meow_WPLR_Sync_Core {
 	}
 
 	function create_keyword( $lrTagId, $name, $lrTagParentId = null ) {
+		$name = sanitize_text_field( $name );
 		$this->set_meta( 'tag_name', $lrTagId, $name, true );
 		$this->set_meta( 'tag_parent', $lrTagId, $lrTagParentId, true );
 		do_action( 'wplr_add_tag', (int)$lrTagId, $name, $lrTagParentId );
 	}
 
 	function update_keyword( $lrTagId, $name ) {
+		$name = sanitize_text_field( $name );
 		$this->set_meta( 'tag_name', $lrTagId, $name, true );
 		do_action( 'wplr_update_tag', (int)$lrTagId, $name );
 	}

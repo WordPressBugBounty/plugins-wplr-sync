@@ -6,7 +6,7 @@ License: GPLv3
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 6.6.1
+Stable tag: 6.6.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -62,6 +62,11 @@ Replace all the files. Nothing else to do.
 Official FAQ is [here](https://meowapps.com/wplr-sync/issues/).
 
 == Changelog ==
+
+= 6.6.2 (2026/11/06) =
+* Fix: Security: Deleting a gallery or folder now only removes photos you have permission to delete (reported by Aabideen Bangash via WPScan).
+* Fix: Security: A Lightroom ID already linked to another user's photo can no longer be reused (reported by Aabideen Bangash via WPScan).
+* Fix: Security: Keyword names are now sanitized and escaped on output (reported by Aabideen Bangash via WPScan).
 
 = 6.6.1 (2026/11/03) =
 * Add: New Meow Apps dashboard with plugin status, health checks and speed tester.
